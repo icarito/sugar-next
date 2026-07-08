@@ -41,16 +41,10 @@ build-sugar:
 run: build-casilda build-toolkit-gtk4
 	@echo "=== Launching Sugar shell (windowed mode, no fullscreen) ==="
 	SUGAR_NO_FULLSCREEN=1 \
+	GI_TYPELIB_PATH="$${HOME}/.local/usr/local/lib/girepository-1.0:$${HOME}/.local/lib/girepository-1.0:/usr/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0" \
+	LD_LIBRARY_PATH="$${HOME}/.local/usr/local/lib:$${HOME}/.local/lib:/usr/lib/x86_64-linux-gnu" \
 	PYTHONPATH="$(CURDIR)/$(SUGAR_DIR)/src:$(CURDIR)/$(TOOLKIT_GTK4_DIR)/src:$$PYTHONPATH" \
-	$(PYTHON) -c "\
-from jarabe import main; \
-import gi; \
-gi.require_version('Gtk', '4.0'); \
-from gi.repository import Gtk; \
-import sys; \
-sys.exit(main.main.__code__)" \
-	|| true
-	@echo "=== Run 'SUGAR_NO_FULLSCREEN=1 PYTHONPATH=... python3 -m jarabe.main' inside a Wayfire/Mutter session for full shell ==="
+	$(PYTHON) $(SUGAR_DIR)/src/jarabe/main.py
 
 debug: build-casilda build-toolkit-gtk4
 	@echo "=== Launching Sugar shell with debugpy on port $(DEBUG_PORT) ==="

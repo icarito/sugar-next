@@ -6,8 +6,8 @@
     ],
     "terminal.integrated.env.linux": {
         "PYTHONPATH": "${workspaceFolder}/repos/sugar-toolkit-gtk4/src:${workspaceFolder}/repos/sugar/src",
-        "GI_TYPELIB_PATH": "${env:HOME}/.local/lib/girepository-1.0",
-        "LD_LIBRARY_PATH": "${env:HOME}/.local/lib"
+        "GI_TYPELIB_PATH": "${env:HOME}/.local/usr/local/lib/girepository-1.0:${env:HOME}/.local/lib/girepository-1.0:/usr/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0",
+        "LD_LIBRARY_PATH": "${env:HOME}/.local/usr/local/lib:${env:HOME}/.local/lib:/usr/lib/x86_64-linux-gnu"
     },
     "[python]": {
         "editor.formatOnSave": true,

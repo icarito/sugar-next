@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "gi-inspector": {
+      "command": "python3",
+      "args": ["mcp-servers/gi-inspector.py"],
+      "env": {}
+    },
+    "gtk-inspector": {
+      "command": "python3",
+      "args": ["mcp-servers/gtk-inspector-mcp.py"],
+      "env": {}
+    },
+    "python-doc": {
+      "command": "python3",
+      "args": ["mcp-servers/python-doc-mcp.py"],
+      "env": {
+        "SUGAR4_PATH": "repos/sugar-toolkit-gtk4/src/sugar4",
+        "JARABE_PATH": "repos/sugar/src/jarabe"
+      }
+    },
+    "wayland-protocols": {
+      "command": "python3",
+      "args": ["mcp-servers/wayland-protocol-mcp.py"],
+      "env": {}
+    }
+  }
+}

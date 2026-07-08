@@ -1,0 +1,16 @@
+{
+    "recommendations": [
+        "ms-python.python",
+        "ms-python.debugpy",
+        "ms-python.black-formatter",
+        "ms-python.flake8",
+        "ms-python.mypy-type-checker",
+        "phind.phind",
+        "mhutchie.git-graph",
+        "tamasfe.even-better-toml",
+        "mesonbuild.mesonbuild",
+        "mads-hartmann.bash-ide-vscode",
+        "eamodio.gitlens",
+        "akiirui.meson"
+    ]
+}

@@ -1,0 +1,181 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Setup Sugar Workspace",
+            "detail": "pip install -e on all repos in editable mode",
+            "type": "shell",
+            "command": "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/pip",
+            "args": [
+                "install", "-e",
+                "${workspaceFolder}/repos/sugar-toolkit-gtk4",
+                "-e", "${workspaceFolder}/repos/sugar"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Casilda",
+            "detail": "meson setup + ninja build",
+            "type": "shell",
+            "command": "meson",
+            "args": [
+                "setup", "_build",
+                "--prefix=${env:HOME}/.local",
+                "-Dgtk_doc=false"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/repos/casilda"
+            },
+            "group": "build",
+            "dependsOn": [],
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Casilda (configure + compile)",
+            "detail": "full meson build including ninja",
+            "type": "shell",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Build Casilda"
+            ],
+            "command": "ninja",
+            "args": ["-C", "_build"],
+            "options": {
+                "cwd": "${workspaceFolder}/repos/casilda"
+            },
+            "group": "build",
+            "problemMatcher": {
+                "owner": "cpp",
+                "fileLocation": ["relative", "${workspaceFolder}/repos/casilda"],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "Install Casilda",
+            "detail": "ninja install to local prefix",
+            "type": "shell",
+            "command": "ninja",
+            "args": ["-C", "_build", "install"],
+            "options": {
+                "cwd": "${workspaceFolder}/repos/casilda"
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Lint All",
+            "detail": "flake8 check on sugar-toolkit-gtk4 and sugar (each with its own .flake8 config)",
+            "type": "shell",
+            "command": "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/flake8 --config=${workspaceFolder}/repos/sugar-toolkit-gtk4/.flake8 ${workspaceFolder}/repos/sugar-toolkit-gtk4/src && ${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/flake8 --config=${workspaceFolder}/repos/sugar/.flake8 ${workspaceFolder}/repos/sugar/src",
+            "group": "test",
+            "problemMatcher": {
+                "owner": "python",
+                "fileLocation": "absolute",
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(\\w+)\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "Type Check",
+            "detail": "mypy type checking on toolkit and sugar",
+            "type": "shell",
+            "command": "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/mypy",
+            "args": [
+                "--config-file=${workspaceFolder}/repos/sugar-toolkit-gtk4/pyproject.toml",
+                "--package", "sugar4",
+                "--package", "jarabe"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PYTHONPATH": "${workspaceFolder}/repos/sugar-toolkit-gtk4/src:${workspaceFolder}/repos/sugar/src",
+                    "MYPYPATH": "${workspaceFolder}/repos/sugar-toolkit-gtk4/src:${workspaceFolder}/repos/sugar/src"
+                }
+            },
+            "group": "test",
+            "problemMatcher": {
+                "owner": "python",
+                "fileLocation": "absolute",
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d*)\\s*(error|note|warning):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "Test Sugar Toolkit",
+            "detail": "pytest in sugar-toolkit-gtk4",
+            "type": "shell",
+            "command": "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/pytest",
+            "args": [
+                "-c", "${workspaceFolder}/repos/sugar-toolkit-gtk4/pyproject.toml"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/repos/sugar-toolkit-gtk4"
+            },
+            "group": "test",
+            "problemMatcher": {
+                "owner": "python",
+                "fileLocation": "absolute",
+                "pattern": {
+                    "regexp": "^\\s+(.*):(\\d+):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "message": 3
+                }
+            }
+        },
+        {
+            "label": "Run Jarabe Windowed",
+            "detail": "terminal task: jarabe in windowed mode",
+            "type": "shell",
+            "command": "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/python",
+            "args": [
+                "${workspaceFolder}/repos/sugar/src/jarabe/main.py"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "SUGAR_NO_FULLSCREEN": "1",
+                    "PYTHONPATH": "${workspaceFolder}/repos/sugar-toolkit-gtk4/src:${workspaceFolder}/repos/sugar/src",
+                    "GI_TYPELIB_PATH": "${env:HOME}/.local/lib/girepository-1.0",
+                    "LD_LIBRARY_PATH": "${env:HOME}/.local/lib"
+                }
+            },
+            "group": "none",
+            "isBackground": false,
+            "problemMatcher": []
+        },
+        {
+            "label": "Format All",
+            "detail": "black format on all Python repos",
+            "type": "shell",
+            "command": "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/black",
+            "args": [
+                "${workspaceFolder}/repos/sugar-toolkit-gtk4/src",
+                "${workspaceFolder}/repos/sugar/src",
+                "${workspaceFolder}/specbook"
+            ],
+            "group": "none",
+            "problemMatcher": []
+        }
+    ]
+}

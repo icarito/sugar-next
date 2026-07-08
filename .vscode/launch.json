@@ -1,0 +1,117 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Sugar Jarabe (windowed)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/repos/sugar/src/jarabe/main.py",
+            "python": "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/python",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "SUGAR_NO_FULLSCREEN": "1",
+                "SUGAR_GROUP_LABELS": "${workspaceFolder}/repos/sugar/data/group-labels.defaults",
+                "SUGAR_MIME_DEFAULTS": "${workspaceFolder}/repos/sugar/data/mime.defaults",
+                "SUGAR_ACTIVITIES_HIDDEN": "${workspaceFolder}/repos/sugar/data/activities.hidden",
+                "GSETTINGS_SCHEMA_DIR": "${env:HOME}/.local/share/glib-2.0/schemas",
+                "PYTHONPATH": "${workspaceFolder}/repos/sugar-toolkit-gtk4/src:${workspaceFolder}/repos/sugar/src",
+                "GI_TYPELIB_PATH": "${env:HOME}/.local/lib/girepository-1.0",
+                "LD_LIBRARY_PATH": "${env:HOME}/.local/lib"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Sugar Jarabe (debug)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/repos/sugar/src/jarabe/main.py",
+            "python": "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/python",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "SUGAR_NO_FULLSCREEN": "1",
+                "SUGAR_GROUP_LABELS": "${workspaceFolder}/repos/sugar/data/group-labels.defaults",
+                "SUGAR_MIME_DEFAULTS": "${workspaceFolder}/repos/sugar/data/mime.defaults",
+                "SUGAR_ACTIVITIES_HIDDEN": "${workspaceFolder}/repos/sugar/data/activities.hidden",
+                "GSETTINGS_SCHEMA_DIR": "${env:HOME}/.local/share/glib-2.0/schemas",
+                "PYTHONPATH": "${workspaceFolder}/repos/sugar-toolkit-gtk4/src:${workspaceFolder}/repos/sugar/src",
+                "GI_TYPELIB_PATH": "${env:HOME}/.local/lib/girepository-1.0",
+                "LD_LIBRARY_PATH": "${env:HOME}/.local/lib"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Sugar Jarabe (fullscreen)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/repos/sugar/src/jarabe/main.py",
+            "python": "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/python",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "SUGAR_GROUP_LABELS": "${workspaceFolder}/repos/sugar/data/group-labels.defaults",
+                "SUGAR_MIME_DEFAULTS": "${workspaceFolder}/repos/sugar/data/mime.defaults",
+                "SUGAR_ACTIVITIES_HIDDEN": "${workspaceFolder}/repos/sugar/data/activities.hidden",
+                "GSETTINGS_SCHEMA_DIR": "${env:HOME}/.local/share/glib-2.0/schemas",
+                "PYTHONPATH": "${workspaceFolder}/repos/sugar-toolkit-gtk4/src:${workspaceFolder}/repos/sugar/src",
+                "GI_TYPELIB_PATH": "${env:HOME}/.local/lib/girepository-1.0",
+                "LD_LIBRARY_PATH": "${env:HOME}/.local/lib"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Casilda Demo",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/specbook/demos/casilda_sugar_demo.py",
+            "python": "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/python",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/repos/sugar-toolkit-gtk4/src:${workspaceFolder}/repos/sugar/src",
+                "GI_TYPELIB_PATH": "${env:HOME}/.local/lib/girepository-1.0",
+                "LD_LIBRARY_PATH": "${env:HOME}/.local/lib"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
+            "name": "Debug Attach",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "localhost",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}",
+                    "remoteRoot": "."
+                }
+            ],
+            "justMyCode": false
+        },
+        {
+            "name": "GTK4 Inspector",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/repos/sugar/src/jarabe/main.py",
+            "python": "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/python",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "SUGAR_NO_FULLSCREEN": "1",
+                "GTK_DEBUG": "interactive",
+                "G_MESSAGES_DEBUG": "all",
+                "SUGAR_GROUP_LABELS": "${workspaceFolder}/repos/sugar/data/group-labels.defaults",
+                "SUGAR_MIME_DEFAULTS": "${workspaceFolder}/repos/sugar/data/mime.defaults",
+                "SUGAR_ACTIVITIES_HIDDEN": "${workspaceFolder}/repos/sugar/data/activities.hidden",
+                "GSETTINGS_SCHEMA_DIR": "${env:HOME}/.local/share/glib-2.0/schemas",
+                "PYTHONPATH": "${workspaceFolder}/repos/sugar-toolkit-gtk4/src:${workspaceFolder}/repos/sugar/src",
+                "GI_TYPELIB_PATH": "${env:HOME}/.local/lib/girepository-1.0",
+                "LD_LIBRARY_PATH": "${env:HOME}/.local/lib"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}

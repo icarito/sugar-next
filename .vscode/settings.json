@@ -1,0 +1,58 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/python",
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/repos/sugar-toolkit-gtk4/src",
+        "${workspaceFolder}/repos/sugar/src"
+    ],
+    "terminal.integrated.env.linux": {
+        "PYTHONPATH": "${workspaceFolder}/repos/sugar-toolkit-gtk4/src:${workspaceFolder}/repos/sugar/src",
+        "GI_TYPELIB_PATH": "${env:HOME}/.local/lib/girepository-1.0",
+        "LD_LIBRARY_PATH": "${env:HOME}/.local/lib"
+    },
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        },
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.rulers": [88, 120],
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true
+    },
+    "black-formatter.interpreter": [
+        "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/python"
+    ],
+    "flake8.interpreter": [
+        "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/python"
+    ],
+    "mypy-type-checker.interpreter": [
+        "${workspaceFolder}/repos/sugar-toolkit-gtk4/.venv/bin/python"
+    ],
+    "mypy-type-checker.args": [
+        "--config-file=${workspaceFolder}/repos/sugar-toolkit-gtk4/pyproject.toml"
+    ],
+    "files.associations": {
+        "*.ac": "shellscript",
+        "*.in": "plaintext"
+    },
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "git.detectSubmodules": false,
+    "editor.rulers": [88, 120],
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.trimAutoWhitespace": true,
+    "search.exclude": {
+        "**/.venv": true,
+        "**/__pycache__": true,
+        "**/.mypy_cache": true,
+        "**/_build": true,
+        "**/*.pyc": true
+    },
+    "files.watcherExclude": {
+        "**/.venv/**": true,
+        "**/__pycache__/**": true,
+        "**/.mypy_cache/**": true,
+        "**/_build/**": true
+    }
+}

@@ -1,0 +1,114 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sugarlabs-workspace"
+version = "0.121.0"
+description = "Sugar Labs GTK4 modernization monorepo"
+readme = "CLAUDE.md"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+    { name = "Sugar Labs Community", email = "sugar-devel@lists.sugarlabs.org" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Desktop Environment",
+    "Topic :: Education",
+]
+requires-python = ">=3.8"
+
+dependencies = [
+    "PyGObject>=3.42.0",
+    "dbus-python>=1.2",
+    "sugar-toolkit-gtk4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov",
+    "ruff>=0.5.0",
+    "mypy>=1.0",
+    "debugpy>=1.8",
+]
+test = [
+    "pytest>=6.0",
+    "pytest-cov",
+]
+docs = [
+    "sphinx>=7.1.0",
+    "sphinx-rtd-theme>=1.3.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/sugarlabs"
+Repository = "https://github.com/sugarlabs/sugar.git"
+Issues = "https://github.com/sugarlabs/sugar/issues"
+
+[tool.uv.sources]
+sugar-toolkit-gtk4 = { path = "repos/sugar-toolkit-gtk4" }
+
+[tool.uv.workspace]
+members = [
+    "repos/sugar-toolkit-gtk4",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py38"
+extend-exclude = [
+    "repos/sugar-toolkit-gtk3/",
+    ".venv/",
+    "build/",
+    "dist/",
+    ".eggs/",
+    ".git/",
+    ".mypy_cache/",
+    ".tox/",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+exclude = ["repos/sugar-toolkit-gtk3/"]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "repos/sugar-toolkit-gtk4/tests",
+    "repos/sugar/tests",
+]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = ["--strict-markers", "--strict-config", "--verbose"]
+markers = ["slow: marks tests as slow", "gtk: marks tests that require GTK4"]

@@ -34,35 +34,10 @@
 - [x] **4.4** Write minimal `bootstrap.sh` — `pip install` + `.desktop` entry
 - [x] **4.5** Write documentation + demo video (README + extension API doc + `sugar-next/docs/demo.mp4`)
 
-## Fase 5: Home View, Settings, and customization
+## Out of scope for this change
 
-- [ ] **5.1** Design pluggable Home View interface (desktop grid, app grid, search-first)
-- [ ] **5.2** Implement desktop-grid layout (Endless-inspired: background, floating icons, container folders)
-- [ ] **5.3** Implement app-grid layout (port from current prototype)
-- [ ] **5.4** Implement search-first layout (blank + search bar)
-- [ ] **5.5** Write Settings panel (background, accent, contrast, layout selector, extensions)
-- [ ] **5.6** Add background image support and accent color picker
-- [ ] **5.7** Add XDG Base Directory compliance (`~/.config/sugar-next/`, `~/.local/share/sugar-next/`)
-- [ ] **5.8** Write layout switcher UI in Settings
-- [ ] **5.9** Allow layouts as extensions
-- [ ] **5.10** Support school-locked layouts via config file
-
-## Fase 6: Colaboración (exploratoria)
-
-- [ ] **6.1** Add `on_peer_join`/`on_peer_leave` hooks to extension API
-- [ ] **6.2** Write demo P2P chat extension (link-local, no account needed)
-- [ ] **6.3** Research XMPP link-local vs. WebRTC vs. custom UDP for pragmatic approach
-- [ ] **6.4** Document collaboration design for future phases
-
-## Fase 7: Journal profundo + integración
-
-- [ ] **7.1** Evaluate Zeitgeist as event source for Journal
-- [ ] **7.2** Add `on_app_close` hook to extension API
-- [ ] **7.3** Research integration with Nautilus/file managers
-- [ ] **7.4** Add explicit publish UI (user chooses what goes into Journal)
-
-## Community
-
-- [ ] **C.1** Post to sugar-devel with demo and proposal
-- [ ] **C.2** Post to IAEP with educational framing
-- [ ] **C.3** Reach out to Walter Bender for feedback
+This change's proposal success criteria (a GTK4 shell with App Grid,
+app launching, an extension API, and pip-installable bootstrap — Fases
+1-4) are fully met. Later-phase work (Home View/Settings customization,
+collaboration, deeper Journal integration, community outreach) was moved
+to a follow-up change — see `openspec/changes/sugar-next-next/`.

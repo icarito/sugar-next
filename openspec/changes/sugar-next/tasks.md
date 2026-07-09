@@ -34,6 +34,17 @@
 - [x] **4.4** Write minimal `bootstrap.sh` — `pip install` + `.desktop` entry
 - [x] **4.5** Write documentation + demo video (README + extension API doc + `sugar-next/docs/demo.mp4`)
 
+## Fase 5: Colaboración XMPP
+
+- [ ] **5.1** Design presence bus API (link-local discovery via Avahi/DNS-SD)
+- [ ] **5.2** Implement XMPP link-local transport (slixmpp or similar)
+- [ ] **5.3** Implement XMPP federated transport (server connection)
+- [ ] **5.4** Expose presence/subscribe hooks in extension API (`on_peer_join`, `on_peer_leave`)
+- [ ] **5.5** Design share substrate API (cursor, clipboard, app channels)
+- [ ] **5.6** Write example collaborative extension (shared drawing or chat)
+- [ ] **5.7** Federation: document server setup for schools
+- [ ] **5.8** Smoke test: two instances on same LAN discover each other
+
 ## Community
 
 - [ ] **C.1** Post to sugar-devel with demo and proposal

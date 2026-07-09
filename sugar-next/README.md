@@ -3,6 +3,8 @@
 GTK4 + Python,
 running as a normal Wayland client on any current Linux distribution.
 
+Full design principles: [HIG.md](HIG.md).
+
 **Sugar Next is not a fork and not a replacement.** It is a sibling
 project that coexists with the legacy Sugar stack and leaves it untouched.
 

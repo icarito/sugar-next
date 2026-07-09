@@ -37,6 +37,9 @@ its spec/change engine:
   the real status of the stalled `sugar` PR #1019.
 - `specbook/docs/design-system.md` — visual design system (placeholder,
   not yet defined — its own future OpenSpec change).
+- `sugar-next/HIG.md` — Sugar Next Human Interface Guidelines:
+  collaboration-first, color system, flow protection, reimagined activity
+  model, extension principles.
 
 ## Agents
 

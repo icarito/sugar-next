@@ -30,10 +30,9 @@
 
 - [ ] **4.1** Design Journal extension API
 - [ ] **4.2** Write Journal extension (SQLite backend)
-- [ ] **4.3** Create Nix flake for self-contained build
-- [ ] **4.4** Create OCI image for `podman run`
-- [ ] **4.5** Write `bootstrap.sh` — one-command setup on any distro
-- [ ] **4.6** Write documentation + demo video
+- [ ] **4.3** Create OCI image for `podman run`
+- [ ] **4.4** Write minimal `bootstrap.sh` — `pip install` + `.desktop` entry
+- [ ] **4.5** Write documentation + demo video
 
 ## Community
 

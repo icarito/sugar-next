@@ -15,7 +15,7 @@ sugar-next/
 ├── api/                    # Extension API
 │   └── hooks.py            # on_app_launch, etc.
 ├── data/                   # Default config, icons
-└── nix/                    # Nix flake for self-contained build
+└── pyproject.toml          # pip-installable package
 ```
 
 ## Stack
@@ -25,7 +25,7 @@ sugar-next/
 | Shell | GTK4 + Python (PyGObject) | Community already has GTK4 experience from toolkit-gtk4 |
 | Extension API | Python, no GObject needed | Low floor for creators |
 | App scanner | XDG Desktop Menu spec | Zero-config, works with any Linux distro |
-| Packaging | Nix flake + OCI | Self-contained, any distro |
+| Packaging | pip + OCI | Self-contained, any distro; no Nix dependency |
 | Compositor | Wayland (host compositor) | No embedded compositor needed — Sugar Next runs as a normal Wayland client |
 
 ## App Grid (Fase 1)

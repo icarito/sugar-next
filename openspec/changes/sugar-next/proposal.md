@@ -31,7 +31,7 @@ Key traits:
 - **Activities and system apps coexist** — no isolation bubble.
 - **Low floor for creators** — write an extension in ~10 lines of Python,
   no GObject knowledge required.
-- **Self-contained and self-hosted** — runs anywhere via Nix + OCI.
+- **Self-contained and self-hosted** — runs anywhere via pip + OCI.
 - **Opt-in, not imposed** — Journal, collaboration, activity model are all
   optional layers, not mandatory.
 
@@ -52,8 +52,8 @@ Key traits:
 2. Clicking an app icon launches it via `Gio.AppInfo.launch()`.
 3. An extension API exists: write a `.py` file in `~/.local/share/sugar-next/extensions/`,
    hook into `on_app_launch`, and it works.
-4. The entire environment can be bootstrapped with one command on any Linux
-   distro (via Nix flake or OCI image).
+4. The entire environment can be bootstrapped with `pip install` on any Linux
+   distro.
 
 ## Non-goals
 

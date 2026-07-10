@@ -1,20 +1,21 @@
 ## Purpose
 
-Define Frame-based view switching between Desktop, Apps, and Search — the
-three top-level ways of seeing the system, navigated via the Frame (not
-via a Settings layout selector). Layouts are a low-level widget concern;
+Define Frame-based view switching between Desktop and Apps — the
+top-level ways of seeing the system, navigated via the Frame (not via a
+Settings layout selector). Layouts are a low-level widget concern;
 choosing between fundamentally different ways of seeing your system is a
 navigation concern, as in Sugar classic's four views (Neighborhood,
-Groups, Home, Activity).
+Groups, Home, Activity). F3 is reserved for a future Groups/Neighborhood
+view; the earlier Search view was retired in favor of putting favorites
+directly on the Desktop (see the `desktop-pie-menu` change).
 
 ## Requirements
 
 ### Requirement: Views accessible from the Frame
 
-The shell SHALL provide three views — Desktop, Apps, Search — accessible
-from the Frame (overlay bar at screen bottom / F6), NOT from Settings.
-The Frame SHALL show a view switcher alongside running windows and
-favorites.
+The shell SHALL provide two views — Desktop, Apps — accessible from the
+Frame (overlay bar at screen bottom / F6), NOT from Settings. The Frame
+SHALL show a view switcher alongside running windows.
 
 #### Scenario: Switching from Desktop to Apps view
 - **WHEN** the learner presses F6 (Frame) and selects the "Apps" button
@@ -23,8 +24,9 @@ favorites.
 
 #### Scenario: Frame shows running windows AND view switcher
 - **WHEN** the Frame opens (F6 or hot corner)
-- **THEN** it shows: [Desktop] [Apps] [Search] buttons on the left,
-  running windows in the center, pinned favorites on the right
+- **THEN** it shows: [Desktop] [Apps] buttons on the left, running
+  windows on the right. Favorites and Settings live in the Desktop pie
+  menu, not the Frame.
 
 ### Requirement: Settings loses layout selector
 
@@ -47,33 +49,38 @@ state when the learner switches away and back.
   then switches back to Apps
 - **THEN** the Apps view shows the same scroll position as before
 
-### Requirement: Desktop view shows background
+### Requirement: Desktop view is the pie menu
 
-The Desktop view (F1 as direct keybinding) SHALL display app icons
-floating on the user's chosen background image. Container folders expand
-into sub-grids.
+The Desktop view (F1 as direct keybinding) SHALL display the learner's
+pinned favorites as a radial pie menu, floating on the user's chosen
+background image. The pie menu's center button SHALL open Settings.
 
 #### Scenario: Desktop background
 - **WHEN** the learner has set a background image in Settings
-- **THEN** the Desktop view shows icons over that image
+- **THEN** the Desktop view shows the pie menu over that image
+
+#### Scenario: Empty Desktop with no favorites
+- **WHEN** no apps have been pinned yet
+- **THEN** the Desktop view shows a message pointing the learner to the
+  Apps view to pin apps, and the Settings center button
+
+#### Scenario: Settings opens from the pie menu center
+- **WHEN** the learner clicks the pie menu's center button
+- **THEN** the Settings panel opens
 
 ### Requirement: Apps view is the grid
 
 The Apps view (F2 direct keybinding) SHALL display the App Grid
-(Gtk.FlowBox with search bar, no background image).
+(Gtk.FlowBox with search bar, no background image). Pinning an app from
+this view SHALL add it to the Desktop pie menu.
 
 #### Scenario: Apps filtered by search
 - **WHEN** the learner types in the search bar in Apps view
 - **THEN** the grid filters in real time
 
-### Requirement: Search view is blank until typed
-
-The Search view (F3 direct keybinding) SHALL show no icons until the
-learner types in the search bar.
-
-#### Scenario: Empty Search view
-- **WHEN** the Search view is active and the search bar is empty
-- **THEN** no app icons are visible
+#### Scenario: Pinning sends a favorite to the pie menu
+- **WHEN** the learner pins an app from the Apps view
+- **THEN** it appears as a petal in the Desktop pie menu
 
 ### Requirement: Default view on first start
 

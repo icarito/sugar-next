@@ -14,7 +14,13 @@
 - [x] 2.1 Write `shell/settings.py`
 - [x] 2.2 Add background image picker
 - [x] 2.3 Add accent color picker
-- [x] 2.4 Add contrast slider
+- [x] 2.4 Add contrast slider — polish added a background Brightness
+      (black↔white) and Contrast (grey veil) pair applied to *all* Home
+      View layouts via a single non-targetable overlay under the view,
+      replacing the earlier one-directional `bg_dim` overlay (migrated on
+      load). Fixed the Settings window's washed-out background and moved
+      the Frame hot-corner off the top-right so it no longer swallows
+      Settings-button clicks.
 - [x] 2.5 Add icon size control
 - [x] 2.6 Add Home View layout selector — **to be removed** (see 12.1)
 - [x] 2.7 Add extension manager

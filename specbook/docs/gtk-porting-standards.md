@@ -214,6 +214,23 @@ nested/windowed operation (unlike Cage, which is kiosk-only with no
 layer-shell; unlike GNOME Shell `--nested`, which is Mutter-specific and
 reportedly broken in recent GNOME releases).
 
+**Sugar Next independently reached the same conclusion for a different
+reason.** The `casilda-activity-host` change originally proposed embedding
+Casilda in Sugar Next's shell so it would own placement/stacking of every
+launched activity — spiking it surfaced real GI-binding gaps
+(`Compositor.new(NULL)` not marked nullable, no GI-visible toplevel
+signals) and, more fundamentally, that Sugar Next doesn't need to own
+window placement in either of its two startup modes: GNOME already places
+windows in hosted mode, and a tiling wlroots compositor (Wayfire) already
+does in standalone mode. The change was rewritten around two
+window-*observation* adapters (a GNOME Shell extension; the existing
+`wlr-foreign-toplevel-management` client) instead — see
+`openspec/changes/casilda-activity-host/design.md` for the full writeup.
+Two independent efforts in this workspace have now hit the same wall:
+Casilda has no tiling/window-management model, so anything needing real
+multi-window behavior (jarabe's Home View/Frame, Sugar Next's Frame) needs
+a real compositor, not an embedding widget.
+
 **Prior art**: [sugar#929](https://github.com/sugarlabs/sugar/issues/929)
 ("Launch sugar in a window", open since 2020) already diagnosed that
 running Sugar in a window needs jarabe itself to change — skip

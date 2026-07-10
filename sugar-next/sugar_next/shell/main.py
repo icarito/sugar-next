@@ -9,21 +9,62 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, Gtk, GLib
 
 from sugar_next.api.hooks import registry as hook_registry
+from sugar_next.bundles.desktop_bundle import DesktopBundle
 from sugar_next.shell.app_state import registry as app_state, normalize_app_id
 from sugar_next.shell.app_grid import SugarAppGrid
 from sugar_next.shell.pie_menu import SugarPieMenu
 from sugar_next.shell.frame import SugarFrame
+from sugar_next.shell.gnome_window_source import GnomeWindowSource
 from sugar_next.shell.home_view import HomeView
-from sugar_next.shell.hyprland_ipc import HyprlandIPC
-from sugar_next.shell.layer_shell import (
-    configure_shell_window,
-    remove_layer_shell_preload_from_env,
-)
 from sugar_next.shell.theme import manager as theme_manager
 from sugar_next.shell.palette import dominant_color_hex
 from sugar_next.shell.settings import SettingsPanel
 from sugar_next.shell.settings_store import SettingsStore, icon_size_px
 from sugar_next.shell.toplevel_tracker import TopLevelTracker
+
+
+def _standalone_protocol_available() -> bool:
+    """Standalone-mode detection (shell-startup spec): probe the compositor.
+
+    Checks whether wlr-foreign-toplevel-management is actually advertised
+    on the current WAYLAND_DISPLAY — a direct compositor capability check,
+    not an environment-variable heuristic. XDG_CURRENT_DESKTOP was tried
+    first and rejected: it is inherited across the process chain from
+    wherever the shell was launched (a terminal, a session's autostart
+    script, ...) rather than reflecting which compositor is actually
+    serving the current Wayland socket, and was observed live giving a
+    false "GNOME" reading for a shell running under a nested Wayfire
+    session launched from a GNOME terminal.
+
+    A throwaway connection + one roundtrip (~30ms measured locally) is
+    cheap enough to do unconditionally at startup, before picking an
+    adapter. GNOME/Mutter never advertises this protocol (by design, see
+    toplevel_tracker.py); any compositor that does is standalone-capable.
+    """
+    try:
+        from pywayland.client import Display
+    except ImportError:
+        return False
+
+    found = False
+    try:
+        display = Display()
+        display.connect()
+        try:
+            registry = display.get_registry()
+
+            def _on_global(_registry, _name, interface, _version):
+                nonlocal found
+                if interface == "zwlr_foreign_toplevel_manager_v1":
+                    found = True
+
+            registry.dispatcher["global"] = _on_global
+            display.roundtrip()
+        finally:
+            display.disconnect()
+    except Exception:
+        return False
+    return found
 
 
 class SugarShell(Gtk.Application):
@@ -35,15 +76,18 @@ class SugarShell(Gtk.Application):
     def _on_activate(self, app):
         hook_registry.load()
         hook_registry.call("on_shell_start")
+        # Computed once and cached: startup-mode detection (shell-startup
+        # spec) probes the compositor over Wayland (see
+        # _standalone_protocol_available's docstring for why), so it's
+        # worth avoiding a second roundtrip for the same answer later in
+        # this method.
+        self._standalone_mode = _standalone_protocol_available()
         self.window = Gtk.ApplicationWindow(
             application=app,
             title="Sugar Next — A Learning Shell for Everyday Computing",
             default_width=1024,
             default_height=768,
         )
-        self._using_layer_shell = configure_shell_window(self.window)
-        remove_layer_shell_preload_from_env()
-
         self.settings_store = SettingsStore()
         theme_manager.apply(self.window.get_display())
         if self.settings_store.get("accent_color"):
@@ -134,9 +178,6 @@ class SugarShell(Gtk.Application):
         )
 
         self.frame = SugarFrame()
-        self._hyprland_ipc = None
-        self._hyprland_poll_id = None
-        self._hyprland_open_ids = set()
 
         # Bundles for apps this shell launched, so the Frame can render a
         # rich item (icon + palette) when the registry reports them open.
@@ -148,20 +189,27 @@ class SugarShell(Gtk.Application):
         # is open (frame-views spec); the Frame only renders it.
         app_state.subscribe(self._sync_frame_running)
 
+        # Window-observation adapter (shell-startup / window-observation
+        # specs): exactly one of the two is active, selected by startup
+        # mode. Both feed the same app_state contract (add_open/
+        # remove_open/set_focused) so the Frame and lifecycle hooks below
+        # do not know or care which one is running.
         self.toplevel_tracker = None
-        if HyprlandIPC.is_session():
-            self._hyprland_ipc = HyprlandIPC()
-            self._hyprland_poll_id = GLib.timeout_add(
-                HyprlandIPC.POLL_INTERVAL_MS, self._poll_hyprland_state
-            )
-            self._poll_hyprland_state()
-        else:
+        self.gnome_window_source = None
+        if self._standalone_mode:
             self.toplevel_tracker = TopLevelTracker(
                 on_open=self._on_toplevel_open,
                 on_close=self._on_toplevel_close,
                 on_focus=self._on_toplevel_focus,
             )
             self.toplevel_tracker.start()
+        else:
+            self.gnome_window_source = GnomeWindowSource(
+                on_open=self._on_toplevel_open,
+                on_close=self._on_toplevel_close,
+                on_focus=self._on_toplevel_focus,
+            )
+            self.gnome_window_source.start()
         hook_registry.subscribe(
             "on_app_close", lambda app_id, app_info: self._on_app_process_closed(app_id)
         )
@@ -309,6 +357,32 @@ class SugarShell(Gtk.Application):
         self._hot_corner.add_controller(motion)
 
         self.window.present()
+        if self._standalone_mode:
+            # Standalone mode: Sugar Next is the session owner, not a
+            # guest — it manages its own presentation (design.md D3's
+            # "session-owner exception"), like any DE's shell process.
+            # In hosted mode no equivalent call is made — Sugar Next is a
+            # guest inside GNOME and does not ask for special treatment.
+            #
+            # Done in-app (Gtk.Window.fullscreen()), not via a Wayfire
+            # window-rule: window-rules' only lifecycle event, `created`,
+            # races GTK4's first paint under Wayfire — a created-time
+            # maximize/fullscreen rule renders the client as flat grey
+            # with no content (upstream Wayfire issues #957, #1094; no
+            # later hook exists in Wayfire's config surface, confirmed
+            # against the wiki). Calling fullscreen() here, after
+            # present() has already mapped and painted the window, avoids
+            # that race.
+            #
+            # Also avoids a second, distinct nested-session bug: calling
+            # fullscreen() *before* present() (on an unmapped toplevel)
+            # made a nested Wayfire dev session negotiate a custom output
+            # mode and reject it (wlroots 0.19's nested Wayland backend —
+            # "Couldn't find matching mode 1280x720@0 ... disabling
+            # output", verified live), tearing down the whole nested
+            # session. After present(), fullscreen only requests state on
+            # the existing output — no mode renegotiation.
+            self.window.fullscreen()
 
     def _on_window_active_changed(self, window, _pspec):
         # Focus changed: this is a fresh context, so any earlier manual
@@ -427,11 +501,10 @@ class SugarShell(Gtk.Application):
         self._hot_corner.set_can_target(not revealed)
 
     def _on_shutdown(self, app):
-        if self._hyprland_poll_id is not None:
-            GLib.source_remove(self._hyprland_poll_id)
-            self._hyprland_poll_id = None
         if self.toplevel_tracker is not None:
             self.toplevel_tracker.stop()
+        if self.gnome_window_source is not None:
+            self.gnome_window_source.stop()
 
     def _on_app_launched(self, bundle):
         self._launched_bundles[normalize_app_id(bundle.app_id)] = bundle
@@ -521,15 +594,35 @@ class SugarShell(Gtk.Application):
         # A window opened for an app we did not launch (or a second window):
         # record it open so its icon lights up everywhere.
         app_state.add_open(wayland_app_id)
+        # window-observation spec's "external window is tracked": show a
+        # real Frame entry for apps opened outside the shell too, not
+        # just icon state. Resolve lazily here (not eagerly for every
+        # installed app) since this only matters for apps that actually
+        # open a window; skip if we already have a bundle (shell-launched
+        # apps keep using the richer one from _on_app_launched).
+        norm_id = normalize_app_id(wayland_app_id)
+        if norm_id and norm_id not in self._launched_bundles:
+            bundle = DesktopBundle.from_wm_class(wayland_app_id)
+            if bundle is not None:
+                self._launched_bundles[norm_id] = bundle
 
     def _on_toplevel_close(self, wayland_app_id, title):
-        if self.toplevel_tracker is None:
-            return
-        if self.toplevel_tracker.available is not True:
-            return
-        # Only drop the app once its *last* window is gone.
-        if not self._has_open_toplevel(wayland_app_id):
-            app_state.remove_open(wayland_app_id)
+        # The availability guard only applies to the standalone adapter
+        # (toplevel_tracker): the protocol may be unavailable on a given
+        # compositor, in which case its close events are unreliable and
+        # the pid-watch fallback (desktop_bundle.py) should be the only
+        # source of truth. The hosted adapter (gnome_window_source) has no
+        # such availability gate — a bug here previously made this whole
+        # method a no-op in hosted mode (self.toplevel_tracker is always
+        # None there), silently dropping every WindowClosed event from the
+        # GNOME Shell extension and leaving closed apps' icons stuck "open".
+        if self.toplevel_tracker is not None:
+            if self.toplevel_tracker.available is not True:
+                return
+            # Only drop the app once its *last* window is gone.
+            if self._has_open_toplevel(wayland_app_id):
+                return
+        app_state.remove_open(wayland_app_id)
 
     def _on_toplevel_focus(self, wayland_app_id):
         # Fired only where the compositor exposes the `activated` state;
@@ -542,31 +635,17 @@ class SugarShell(Gtk.Application):
             for state in self.toplevel_tracker._toplevels.values()
         )
 
-    def _poll_hyprland_state(self):
-        if self._hyprland_ipc is None:
-            return False
-        try:
-            state = self._hyprland_ipc.snapshot()
-        except Exception:
-            return True
-
-        next_open = {
-            client.normalized_app_id
-            for client in state.clients
-            if client.normalized_app_id
-        }
-        for app_id in next_open - self._hyprland_open_ids:
-            app_state.add_open(app_id)
-        for app_id in self._hyprland_open_ids - next_open:
-            app_state.remove_open(app_id)
-        self._hyprland_open_ids = next_open
-        app_state.set_focused(state.focused_app_id)
-        return True
-
     def _on_frame_running_activated(self, bundle):
-        if self._hyprland_ipc is None:
-            return False
-        return self._hyprland_ipc.focus_window(bundle.app_id)
+        # Ask whichever window-observation adapter is active to focus the
+        # window natively on the host or session compositor (window-
+        # observation spec: "Activating a running entry focuses the
+        # window"). Neither adapter owns placement — this only requests
+        # activation, same as clicking a taskbar entry would.
+        if self.gnome_window_source is not None:
+            return self.gnome_window_source.focus_window(bundle.app_id)
+        if self.toplevel_tracker is not None:
+            return self.toplevel_tracker.focus(bundle.app_id)
+        return False
 
     def _on_app_process_closed(self, app_id):
         # Always remove from app_state when the process exits — the
@@ -580,9 +659,12 @@ class SugarShell(Gtk.Application):
 
         Adds a Frame item for each open app we have a bundle for and are
         not already showing; removes items whose app is no longer open.
-        Apps opened outside the shell (no bundle) are tracked in the
-        registry for icon state but not shown as Frame items, matching the
-        prior behavior where the Frame only listed shell-launched apps.
+        _launched_bundles holds both shell-launched apps (from
+        _on_app_launched) and externally-opened ones resolved lazily in
+        _on_toplevel_open (window-observation spec: "external window is
+        tracked") — an app with no installed .desktop entry has no bundle
+        and is tracked in the registry for icon state only, not shown as
+        a Frame item (nothing to render a name/icon from).
         """
         open_ids = app_state.open_app_ids
         for norm_id, bundle in self._launched_bundles.items():

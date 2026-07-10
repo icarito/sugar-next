@@ -136,6 +136,26 @@ a keybinding):
 - **Extensions**: list installed extensions, enable/disable
 - **About**: version, license
 
+## Startup modes and window observation
+
+Sugar Next supports exactly two startup modes (see the
+`casilda-activity-host` change's `shell-startup`/`window-observation`
+specs for the full requirements):
+
+- **Hosted** — a normal windowed app inside a GNOME session. Window
+  open/close/focus data comes from the `sugar-next-windows` GNOME Shell
+  extension (`extensions/gnome-shell/`, installed by `bootstrap.sh`) over
+  D-Bus, since Mutter does not implement `wlr-foreign-toplevel-management`.
+  This is the primary development environment.
+- **Standalone** — the shell as a tiling Wayland session's own client
+  (Wayfire is the reference compositor; see `session/wayfire.ini`). Window
+  data comes from `wlr-foreign-toplevel-management` directly.
+
+Sugar Next does not own window placement, stacking, or tiling in either
+mode — the host or session compositor does. Both modes feed the same
+internal `app_state` contract, so the Frame's running list and
+focus-follow behave identically regardless of which adapter is active.
+
 ## XDG FreeDesktop compliance
 
 Sugar Next aims to be a good citizen in the FreeDesktop ecosystem:
@@ -144,7 +164,9 @@ Sugar Next aims to be a good citizen in the FreeDesktop ecosystem:
 - XDG Desktop Menu spec for app scanning (done)
 - XDG Base Directory spec (`~/.local/share/sugar-next/`, `~/.config/sugar-next/`)
 - `org.sugarlabs.SugarNext` D-Bus name (future)
-- `wlr-foreign-toplevel-management` protocol for window listing (future)
+- `wlr-foreign-toplevel-management` protocol for window listing in
+  standalone mode (done); a GNOME Shell extension covers the same need in
+  hosted mode, where this protocol is unavailable (done)
 - MIME type associations for Journal entries (future)
 - StatusNotifierItem (system tray) for background services (future)
 

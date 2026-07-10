@@ -81,18 +81,27 @@ sugar-next
 > Most commands below assume you are either in that directory or using the
 > repository root paths shown by the VS Code tasks.
 
-## Development Runners
+## Startup Modes
 
-The repo includes the same runners exposed by `.vscode/tasks.json` and
-`.vscode/launch.json`.
+Sugar Next supports exactly two ways to run — no nested-compositor dev
+indirection in between (see `HIG.md`'s "Startup modes and window
+observation" and the `casilda-activity-host` change for the full design):
+
+| Mode | How | Window data source |
+| --- | --- | --- |
+| **Hosted** (primary dev environment) | Run normally inside a GNOME session — `sugar-next` or `PYTHONPATH=. python -m sugar_next.shell.main` | `sugar-next-windows` GNOME Shell extension (installed by `bootstrap.sh`) |
+| **Standalone** | The shell as a Wayfire session's own client — see `session/wayfire.ini` | `wlr-foreign-toplevel-management` (native to Wayfire) |
+
+`bootstrap.sh` detects which mode applies and prepares it — installing and
+enabling the GNOME Shell extension on a GNOME session, or pointing to
+`session/wayfire.ini` otherwise. Neither mode requires Sugar Next to own
+window placement or tiling; that stays with GNOME or Wayfire.
 
 | VS Code task / launch config | Command | Use when |
 | --- | --- | --- |
-| `Run Sugar Next` / `Sugar Next (editable src)` | `PYTHONPATH=. python -m sugar_next.shell.main` | Fast local shell run inside your current compositor |
-| `Run Sugar Next (nested Wayfire)` | `dev/run-wayfire.sh` | wlroots fallback testing with toplevel open/close/focus events |
-| `Run Sugar Next (nested Hyprland)` | `dev/run-hyprland-nested.sh` | Target session-compositor path with Hyprland IPC |
+| `Run Sugar Next` / `Sugar Next (editable src)` | `PYTHONPATH=. python -m sugar_next.shell.main` | Hosted-mode local run inside GNOME |
 | `Run Sugar Next (container)` | `dev/run-container.sh` | Run from an OCI image against the host Wayland socket |
-| `Bootstrap Sugar Next` | `./bootstrap.sh` | Install into `~/.local/share/sugar-next/venv` and create a desktop entry |
+| `Bootstrap Sugar Next` | `./bootstrap.sh` | Install into `~/.local/share/sugar-next/venv`, create a desktop entry, set up hosted-mode window observation |
 | `Test Sugar Next` | `python -m pytest tests/` | Run the shell test suite |
 
 Install `debugpy` once if you want the debugpy launch configs:
@@ -100,47 +109,6 @@ Install `debugpy` once if you want the debugpy launch configs:
 ```sh
 ~/.local/share/sugar-next/venv/bin/pip install debugpy
 ```
-
-## Nested Wayfire
-
-Wayfire runs in a nested host window:
-
-```sh
-dev/run-wayfire.sh
-```
-
-Useful overrides:
-
-```sh
-WLR_WL_OUTPUTS=1 dev/run-wayfire.sh
-WLR_HEADLESS_OUTPUTS=0 dev/run-wayfire.sh
-```
-
-The `xkbcomp` "not fatal to the X server" messages come from Xwayland
-keyboard-map setup and can usually be ignored. The runner forces the Sugar
-Next shell itself onto GTK's Wayland backend. The runner does not set an
-explicit `[output:WL-1]` mode because wlroots 0.19 can reject nested custom
-modes and disable the Wayland output.
-
-## Nested Hyprland
-
-Hyprland is the target compositor for Sugar Next as a standalone session.
-For iterative development inside your existing Wayland session:
-
-```sh
-dev/run-hyprland-nested.sh
-```
-
-Useful overrides:
-
-```sh
-SUGAR_NEXT_NESTED_SIZE=900x560 dev/run-hyprland-nested.sh
-SUGAR_NEXT_LAYER_SHELL=1 dev/run-hyprland-nested.sh   # experimental
-```
-
-The runner sets `AQ_BACKENDS=wayland`, exports a Sugar Next desktop
-environment for the nested session, and uses `start-hyprland` when
-available.
 
 ## Container Run
 

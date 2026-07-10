@@ -35,6 +35,7 @@ log = logging.getLogger("sugar-next.toplevel-tracker")
 
 try:
     from pywayland.client import Display
+    from pywayland.protocol.wayland import WlSeat
 
     _HAS_PYWAYLAND = True
 except ImportError:
@@ -52,6 +53,8 @@ if _HAS_PYWAYLAND:
     _STATE_ACTIVATED = ZwlrForeignToplevelHandleV1.state.activated
 else:
     _STATE_ACTIVATED = 2
+
+_SEAT_NAME = "wl_seat"
 
 _PROTOCOL_NAME = "zwlr_foreign_toplevel_manager_v1"
 
@@ -84,6 +87,10 @@ class TopLevelTracker:
         #: the C/Python boundary (handles are pywayland Proxy objects
         #: created by the compositor and do not have a stable .id attr).
         self._toplevels = {}
+        #: bound wl_seat proxy, needed for ZwlrForeignToplevelHandleV1's
+        #: activate() request; set from the same registry roundtrip that
+        #: binds the toplevel manager (see _run).
+        self._seat = None
 
     @property
     def available(self) -> bool:
@@ -125,6 +132,12 @@ class TopLevelTracker:
                     manager_proxy["proxy"] = registry.bind(
                         name, ZwlrForeignToplevelManagerV1, min(version, 3)
                     )
+                elif interface == _SEAT_NAME:
+                    # Needed for ZwlrForeignToplevelHandleV1.activate(seat)
+                    # — focus-follow (window-observation spec) in
+                    # standalone mode. Any compositor offering the
+                    # foreign-toplevel protocol also offers wl_seat.
+                    self._seat = registry.bind(name, WlSeat, min(version, 7))
 
             registry.dispatcher["global"] = on_global
             self._display.roundtrip()
@@ -163,7 +176,7 @@ class TopLevelTracker:
 
     def _on_toplevel_created(self, _manager, handle):
         _key = id(handle)
-        state = {"app_id": None, "title": None, "activated": False}
+        state = {"app_id": None, "title": None, "activated": False, "handle": handle}
         self._toplevels[_key] = state
 
         def on_app_id(_handle, app_id):
@@ -206,3 +219,28 @@ class TopLevelTracker:
         )
         if self._on_focus is not None:
             self._on_focus(focused)
+
+    def focus(self, app_id: str) -> bool:
+        """Request activation of the toplevel matching *app_id*.
+
+        Uses ZwlrForeignToplevelHandleV1.activate(seat) — part of the
+        foreign-toplevel protocol itself, no compositor-specific IPC
+        needed (window-observation spec: "Activating a running entry
+        focuses the window"). Returns False if no matching toplevel is
+        currently tracked or the seat hasn't been bound yet.
+
+        Called from the GTK main thread (via main.py's
+        _on_frame_running_activated), not the tracker's background
+        thread. activate()'s underlying _marshal() only buffers the
+        request; it does not require running on the display's own
+        thread to enqueue safely. The background thread's next
+        roundtrip() (at most _POLL_INTERVAL later) flushes it to the
+        compositor — acceptable latency for a user-initiated focus click.
+        """
+        if self._seat is None:
+            return False
+        for state in self._toplevels.values():
+            if state.get("app_id") == app_id:
+                state["handle"].activate(self._seat)
+                return True
+        return False

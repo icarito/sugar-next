@@ -269,10 +269,9 @@ class SugarFrame(Gtk.Revealer):
     def remove_running(self, app_id, app_info=None):
         """Stop showing an app in the frame once it has closed.
 
-        Only apps this shell can observe closing (via on_app_close — see
-        the sugar-next-next design doc's note on PID-watch limitations)
-        are removed; apps launched outside the shell stay listed until
-        universal window tracking exists.
+        Called for both shell-launched and externally-opened apps —
+        window-observation adapters (see window-observation spec) track
+        every window's close event, not just ones this shell launched.
         """
         if app_id not in self._running_ids:
             return

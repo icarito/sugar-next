@@ -17,9 +17,9 @@ as the Frame's `_running_ids`.
   update
 
 ### Requirement: Focused-app tracking where available
-On compositors exposing the wlroots `zwlr_foreign_toplevel_manager_v1`
-`activated` state (with the optional `pywayland` dependency installed),
-the shell SHALL track which single app id currently holds focus.
+The shell SHALL track which single app id currently holds focus on
+compositors exposing the wlroots `zwlr_foreign_toplevel_manager_v1`
+`activated` state (with the optional `pywayland` dependency installed).
 
 #### Scenario: Focus changes between two open apps
 - **WHEN** the learner switches focus from App A to App B, both already

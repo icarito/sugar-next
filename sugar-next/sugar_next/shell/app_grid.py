@@ -4,6 +4,8 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gtk, Gio, GLib, Pango
 
+from sugar_next.shell.icon_state import bind_icon_state
+
 
 
 class _AppGridCell(Gtk.Box):
@@ -30,6 +32,9 @@ class _AppGridCell(Gtk.Box):
         self.icon.set_pixel_size(icon_size)
         self.append(self.icon)
 
+        # Greyscale when closed, color when open, saturated when focused.
+        self._unbind_icon_state = bind_icon_state(self.icon, bundle.app_id)
+
         self.label = Gtk.Label(label=bundle.name)
         self.label.set_max_width_chars(12)
         self.label.set_ellipsize(Pango.EllipsizeMode.END)
@@ -47,6 +52,12 @@ class _AppGridCell(Gtk.Box):
             right_click.set_button(3)
             right_click.connect("pressed", self._on_right_click)
             self.add_controller(right_click)
+
+    def dispose_icon_state(self):
+        """Detach the icon-state subscription before this cell is dropped."""
+        if getattr(self, "_unbind_icon_state", None) is not None:
+            self._unbind_icon_state()
+            self._unbind_icon_state = None
 
     def _on_pressed(self, gesture, n_press, x, y):
         self.bundle.launch()
@@ -165,6 +176,8 @@ class SugarAppGrid(Gtk.Box):
 
     def set_icon_size(self, icon_size):
         self._icon_size = icon_size
+        for cell in self._all_cells:
+            cell.dispose_icon_state()
         while child := self._flow_box.get_first_child():
             self._flow_box.remove(child)
         self._all_cells = []

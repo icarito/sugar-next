@@ -54,3 +54,35 @@ def test_settings_callback_fires_on_center_click(tmp_path, monkeypatch):
     menu = SugarPieMenu(on_settings=lambda: called.append(True))
     menu._center_button.emit("clicked")
     assert called == [True]
+
+
+def test_launch_notifies_on_launched():
+    # Regression: launching from the pie menu must fire on_launched so the
+    # shell marks the app open in the registry — otherwise its icon never
+    # leaves greyscale (only the Apps grid was lighting icons up).
+    launched = []
+    menu = SugarPieMenu(on_launched=launched.append)
+    bundle = _stub_bundle("x.desktop")
+    menu._launch(bundle)
+    assert launched == [bundle]
+
+
+def test_petal_is_fully_constructed():
+    # Regression: the icon-state binding must not truncate the petal's
+    # constructor — the unpin menu button belongs to __init__.
+    from sugar_next.shell.pie_menu import _Petal
+
+    petal = _Petal(
+        _stub_bundle("x.desktop"),
+        on_activate=lambda b: None,
+        on_unpin=lambda b: None,
+    )
+    # Launch button + menu button both appended.
+    children = []
+    child = petal.get_first_child()
+    while child is not None:
+        children.append(child)
+        child = child.get_next_sibling()
+    assert len(children) == 2
+    assert hasattr(petal, "dispose_icon_state")
+    petal.dispose_icon_state()  # must not raise

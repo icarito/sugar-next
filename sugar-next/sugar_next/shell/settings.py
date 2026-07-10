@@ -1,32 +1,51 @@
 """Settings window — modal dialog with tabs.
 
-Accessible from the Frame or F1/F10. Appearance, Behavior, Extensions, About.
+Accessible from the Frame or F1/F10. Tabs (icon-only): Background, Color,
+Behavior, Extensions, About.
 """
 
 import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
-from gi.repository import Gdk, GdkPixbuf, Gtk
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from sugar_next.api.hooks import list_extensions, registry, set_extension_enabled
 from sugar_next.shell.settings_store import SettingsStore, icon_size_px
 from sugar_next.shell.theme import DEFAULT_ACCENT, manager as theme_manager
 
+# Curated accent palette. A broad, evenly-spaced spread across the hue
+# circle (plus a couple of neutrals) so the learner has a real choice
+# without a full color wheel — the picker is a swatch grid, not a wheel
+# (see the color-system design doc). Order flows around the hue circle.
 _ACCENT_PRESETS = [
-    "#3584e4",
-    "#33d17a",
-    "#f6d32d",
-    "#ff7800",
-    "#e01b24",
-    "#9141ac",
-    "#1a5fb4",
-    "#26a269",
+    ("#e01b24", "Red"),
+    ("#ff7800", "Orange"),
+    ("#f6d32d", "Yellow"),
+    ("#9ccc3c", "Lime"),
+    ("#33d17a", "Green"),
+    ("#26a269", "Forest"),
+    ("#2ec7c9", "Teal"),
+    ("#3584e4", "Blue"),
+    ("#1a5fb4", "Navy"),
+    ("#6d5acd", "Indigo"),
+    ("#9141ac", "Purple"),
+    ("#d956a4", "Magenta"),
+    ("#e666a0", "Pink"),
+    ("#8e6f5e", "Brown"),
+    ("#5e5c64", "Slate"),
+    ("#9a9996", "Grey"),
 ]
 
-_ACCENT_NAMES = [
-    "Blue", "Green", "Yellow", "Orange",
-    "Red", "Purple", "Navy", "Forest",
+# Tokens the learner can override individually in the Color tab, with
+# human labels. These are the accent-derived tokens plus the two most
+# useful neutrals; each may be reset back to its generated/base value.
+_OVERRIDABLE_TOKENS = [
+    ("--sn-accent-counter", "Accent counterpart"),
+    ("--sn-bg-alt", "Frame / bar background"),
+    ("--sn-surface", "Card surface"),
+    ("--sn-bg", "Shell background"),
+    ("--sn-text", "Text"),
 ]
 
 _KEYBINDINGS = [
@@ -52,17 +71,29 @@ _SETTINGS_CSS = """
         padding: 16px;
     }
     .settings-swatch {
-        min-width: 28px;
-        min-height: 28px;
+        min-width: 34px;
+        min-height: 34px;
         border-radius: 50%;
         border: 2px solid transparent;
-        transition: border-color 150ms;
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15),
+                    0 1px 2px rgba(0,0,0,0.2);
+        transition: border-color 150ms, transform 100ms;
     }
     .settings-swatch:hover {
         border-color: var(--sn-accent);
+        transform: scale(1.08);
     }
     .settings-swatch-active {
         border-color: var(--sn-text);
+    }
+    .settings-token-swatch {
+        min-width: 24px;
+        min-height: 24px;
+        border-radius: 6px;
+        border: 1px solid rgba(128,128,128,0.4);
+    }
+    .settings-token-row {
+        padding: 4px 0;
     }
     .settings-section {
         margin-bottom: 16px;
@@ -113,18 +144,24 @@ class SettingsWindow(Gtk.Window):
         stack.set_vexpand(True)
         stack.set_hexpand(True)
 
-        stack.add_titled(
-            self._build_appearance(), "appearance", "Appearance"
-        )
-        stack.add_titled(
-            self._build_behavior(), "behavior", "Behavior"
-        )
-        stack.add_titled(
-            self._build_extensions_tab(), "extensions", "Extensions"
-        )
-        stack.add_titled(
-            self._build_about_tab(), "about", "About"
-        )
+        # Tabs are icon-only (color-system-and-icon-state change): each
+        # StackPage carries a symbolic icon; the human title becomes the
+        # tooltip / accessible name via set_title, so the StackSwitcher
+        # renders the icon while assistive tech still reads the label.
+        for child, name, title, icon in [
+            (self._build_background(), "background", "Background",
+             "preferences-desktop-wallpaper-symbolic"),
+            (self._build_color(), "color", "Color",
+             "applications-graphics-symbolic"),
+            (self._build_behavior(), "behavior", "Behavior",
+             "preferences-system-symbolic"),
+            (self._build_extensions_tab(), "extensions", "Extensions",
+             "application-x-addon-symbolic"),
+            (self._build_about_tab(), "about", "About",
+             "help-about-symbolic"),
+        ]:
+            page = stack.add_titled(child, name, title)
+            page.set_icon_name(icon)
 
         switcher = Gtk.StackSwitcher()
         switcher.set_stack(stack)
@@ -145,9 +182,9 @@ class SettingsWindow(Gtk.Window):
             return True
         return False
 
-    # -- Tab: Appearance --------------------------------------------------
+    # -- Tab: Background --------------------------------------------------
 
-    def _build_appearance(self):
+    def _build_background(self):
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
@@ -243,37 +280,55 @@ class SettingsWindow(Gtk.Window):
         section.append(contrast_row)
 
         box.append(section)
+        return scrolled
 
-        # -- Accent color section --
-        section2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        section2.add_css_class("settings-section")
-        title2 = Gtk.Label(label="Accent color", xalign=0)
-        title2.add_css_class("settings-section-title")
-        section2.append(title2)
+    # -- Tab: Color -------------------------------------------------------
 
-        current_color = self._store.get("accent_color")
-        self._accent_label = Gtk.Label(
-            label=current_color or DEFAULT_ACCENT, xalign=0
+    def _build_color(self):
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        box.set_margin_start(16)
+        box.set_margin_end(16)
+        box.set_margin_top(16)
+        box.set_margin_bottom(16)
+        scrolled.set_child(box)
+        scrolled.add_css_class("settings-tab-page")
+
+        # -- Accent color section: expanded curated swatch grid --
+        section = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        section.add_css_class("settings-section")
+        title = Gtk.Label(label="Accent color", xalign=0)
+        title.add_css_class("settings-section-title")
+        section.append(title)
+        hint = Gtk.Label(
+            label="The rest of the palette is derived from this color.",
+            xalign=0,
         )
-        section2.append(self._accent_label)
+        hint.add_css_class("dim-label")
+        section.append(hint)
+
+        current_color = self._store.get("accent_color") or DEFAULT_ACCENT
+        self._accent_label = Gtk.Label(label=current_color, xalign=0)
+        section.append(self._accent_label)
 
         swatches = Gtk.FlowBox()
         swatches.set_max_children_per_line(8)
         swatches.set_selection_mode(Gtk.SelectionMode.NONE)
         swatches.set_homogeneous(True)
-        swatches.set_row_spacing(4)
-        swatches.set_column_spacing(4)
+        swatches.set_row_spacing(6)
+        swatches.set_column_spacing(6)
 
         css_rules = []
         self._swatch_buttons = []
-        for idx, hex_color in enumerate(_ACCENT_PRESETS):
+        for idx, (hex_color, name) in enumerate(_ACCENT_PRESETS):
             btn = Gtk.Button()
             btn.add_css_class("settings-swatch")
             btn.add_css_class(f"sw-{idx}")
-            btn.set_tooltip_text(f"{_ACCENT_NAMES[idx]}: {hex_color}")
+            btn.set_tooltip_text(f"{name}: {hex_color}")
+            btn.update_property([Gtk.AccessibleProperty.LABEL], [name])
             css_rules.append(
-                f".sw-{idx} {{ background: {hex_color};"
-                " min-width: 28px; min-height: 28px; border-radius: 50%; }"
+                f".sw-{idx} {{ background: {hex_color}; }}"
             )
             btn.connect("clicked", self._on_accent_chosen, hex_color)
             swatches.append(btn)
@@ -287,7 +342,7 @@ class SettingsWindow(Gtk.Window):
             prov,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
-        section2.append(swatches)
+        section.append(swatches)
 
         custom_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         self._custom_entry = Gtk.Entry()
@@ -298,11 +353,103 @@ class SettingsWindow(Gtk.Window):
         apply_btn = Gtk.Button(label="Apply")
         apply_btn.connect("clicked", self._on_custom_accent)
         custom_row.append(apply_btn)
-        section2.append(custom_row)
+        section.append(custom_row)
+        box.append(section)
 
-        box.append(section2)
+        # -- Per-token overrides section --
+        overrides = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        overrides.add_css_class("settings-section")
+        otitle = Gtk.Label(label="Fine-tune colors", xalign=0)
+        otitle.add_css_class("settings-section-title")
+        overrides.append(otitle)
+        ohint = Gtk.Label(
+            label="Override an individual color, or reset it to the "
+                  "generated value.",
+            xalign=0,
+        )
+        ohint.add_css_class("dim-label")
+        overrides.append(ohint)
+
+        self._token_swatches = {}
+        for token, label in _OVERRIDABLE_TOKENS:
+            overrides.append(self._build_token_row(token, label))
+        box.append(overrides)
 
         return scrolled
+
+    def _build_token_row(self, token, label):
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        row.add_css_class("settings-token-row")
+
+        swatch = Gtk.Button()
+        swatch.add_css_class("settings-token-swatch")
+        swatch.set_tooltip_text("Pick a color")
+        swatch.connect("clicked", self._on_token_swatch_clicked, token)
+        self._token_swatches[token] = swatch
+        row.append(swatch)
+        self._refresh_token_swatch(token)
+
+        row.append(Gtk.Label(label=label, xalign=0, hexpand=True))
+
+        reset = Gtk.Button(label="Reset")
+        reset.add_css_class("flat")
+        reset.set_sensitive(theme_manager.override_value(token) is not None)
+        reset.connect("clicked", self._on_token_reset, token)
+        self._token_resets = getattr(self, "_token_resets", {})
+        self._token_resets[token] = reset
+        row.append(reset)
+        return row
+
+    def _current_token_value(self, token):
+        """The value a token shows now: user override, else generated."""
+        override = theme_manager.override_value(token)
+        if override is not None:
+            return override
+        derived = theme_manager.derived_palette()
+        if token in derived:
+            return derived[token]
+        return theme_manager.token(token) or "#888888"
+
+    def _refresh_token_swatch(self, token):
+        swatch = self._token_swatches.get(token)
+        if swatch is None:
+            return
+        color = self._current_token_value(token)
+        css_class = "tok-" + token.strip("-")
+        prov = Gtk.CssProvider()
+        prov.load_from_string(f".{css_class} {{ background: {color}; }}")
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(),
+            prov,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+        swatch.add_css_class(css_class)
+
+    def _on_token_swatch_clicked(self, _btn, token):
+        dialog = Gtk.ColorDialog()
+
+        def _picked(dlg, result):
+            try:
+                rgba = dlg.choose_rgba_finish(result)
+            except GLib.Error:
+                return
+            hex_color = "#{:02x}{:02x}{:02x}".format(
+                round(rgba.red * 255),
+                round(rgba.green * 255),
+                round(rgba.blue * 255),
+            )
+            theme_manager.set_override(token, hex_color)
+            self._refresh_token_swatch(token)
+            self._token_resets[token].set_sensitive(True)
+
+        start = Gdk.RGBA()
+        start.parse(self._current_token_value(token))
+        dialog.choose_rgba(self, start, None, _picked)
+
+    def _on_token_reset(self, btn, token):
+        theme_manager.clear_override(token)
+        self._refresh_token_swatch(token)
+        btn.set_sensitive(False)
 
     def _refresh_bg_thumb(self):
         path = self._store.get("background_path")
@@ -381,6 +528,11 @@ class SettingsWindow(Gtk.Window):
         self._accent_label.set_label(hex_color)
         theme_manager.set_accent_tint(hex_color)
         self._update_active_swatch(hex_color)
+        # Derived tokens changed; refresh the fine-tune swatches that are
+        # still auto-derived (overridden ones keep their pinned color).
+        for token in getattr(self, "_token_swatches", {}):
+            if theme_manager.override_value(token) is None:
+                self._refresh_token_swatch(token)
 
     def _on_custom_accent(self, _btn):
         text = self._custom_entry.get_text().strip()

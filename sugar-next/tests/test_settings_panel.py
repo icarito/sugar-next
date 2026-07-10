@@ -53,6 +53,35 @@ def test_accent_choice_updates_store(tmp_path):
     assert store.get("accent_color") == "#123456"
 
 
+def test_color_tab_has_expanded_swatch_grid(tmp_path):
+    store = SettingsStore(tmp_path / "settings.json")
+    panel = SettingsPanel(store=store)
+    # The curated grid is larger than the previous 8-color set.
+    assert len(panel._swatch_buttons) > 8
+
+
+def test_per_token_override_and_reset(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    from sugar_next.shell.theme import manager as theme_manager
+
+    theme_manager.clear_override("--sn-surface")
+    store = SettingsStore(tmp_path / "settings.json")
+    panel = SettingsPanel(store=store)
+
+    # A row exists for each overridable token, with a reset button.
+    assert "--sn-surface" in panel._token_swatches
+    reset = panel._token_resets["--sn-surface"]
+    assert reset.get_sensitive() is False  # no override yet
+
+    theme_manager.set_override("--sn-surface", "#112233")
+    panel._refresh_token_swatch("--sn-surface")
+    assert theme_manager.override_value("--sn-surface") == "#112233"
+
+    panel._on_token_reset(reset, "--sn-surface")
+    assert theme_manager.override_value("--sn-surface") is None
+    assert reset.get_sensitive() is False
+
+
 def test_extensions_list_shows_installed_extensions(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
     extensions = tmp_path / "sugar-next" / "extensions"

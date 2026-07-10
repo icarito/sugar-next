@@ -17,6 +17,8 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk
 
+from sugar_next.shell.icon_state import bind_icon_state
+
 
 def _favorites_file() -> Path:
     data_home = os.environ.get(
@@ -56,6 +58,9 @@ class _Petal(Gtk.Box):
         launch_button.connect("clicked", lambda *_: on_activate(bundle))
         self.append(launch_button)
 
+        # Greyscale when closed, color when open, saturated when focused.
+        self._unbind_icon_state = bind_icon_state(image, bundle.app_id)
+
         menu_button = Gtk.MenuButton()
         menu_button.add_css_class("flat")
         menu_button.add_css_class("pie-menu-petal-menu")
@@ -76,6 +81,12 @@ class _Petal(Gtk.Box):
         box.append(unpin_button)
         popover.set_child(box)
         menu_button.set_popover(popover)
+
+    def dispose_icon_state(self):
+        """Detach the icon-state subscription before this petal is dropped."""
+        if getattr(self, "_unbind_icon_state", None) is not None:
+            self._unbind_icon_state()
+            self._unbind_icon_state = None
 
 
 class SugarPieMenu(Gtk.Fixed):
@@ -123,7 +134,7 @@ class SugarPieMenu(Gtk.Fixed):
     #: Radius (px) of the circle the petals sit on.
     _RADIUS = 140
 
-    def __init__(self, on_settings=None, icon_size=48):
+    def __init__(self, on_settings=None, on_launched=None, icon_size=48):
         super().__init__()
         # Without expand, a Gtk.Fixed shrinks to its content's natural
         # size — with no petals, that's just the center button, so the
@@ -133,6 +144,10 @@ class SugarPieMenu(Gtk.Fixed):
         self.set_hexpand(True)
         self.set_vexpand(True)
         self._on_settings = on_settings
+        # Called after launching an app so the shell can mark it open in
+        # the app-state registry — the same hook the Apps grid uses, so a
+        # pie-menu launch lights the icon up too.
+        self._on_launched = on_launched
         self._icon_size = icon_size
         self._favorite_ids = self._load_favorites()
         self._petals = []
@@ -236,6 +251,7 @@ class SugarPieMenu(Gtk.Fixed):
         from sugar_next.bundles.desktop_bundle import DesktopBundle
 
         for petal in self._petals:
+            petal.dispose_icon_state()
             self.remove(petal)
         self._petals = []
 
@@ -276,6 +292,8 @@ class SugarPieMenu(Gtk.Fixed):
 
     def _launch(self, bundle):
         bundle.launch()
+        if self._on_launched is not None:
+            self._on_launched(bundle)
 
     def _unpin(self, bundle):
         if bundle.app_id in self._favorite_ids:

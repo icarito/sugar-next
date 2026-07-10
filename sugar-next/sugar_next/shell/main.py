@@ -7,6 +7,7 @@ gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gtk, GLib
 
 from sugar_next.api.hooks import registry as hook_registry
+from sugar_next.shell.app_state import registry as app_state, normalize_app_id
 from sugar_next.shell.app_grid import SugarAppGrid
 from sugar_next.shell.pie_menu import SugarPieMenu
 from sugar_next.shell.frame import SugarFrame
@@ -125,9 +126,20 @@ class SugarShell(Gtk.Application):
 
         self.frame = SugarFrame()
 
+        # Bundles for apps this shell launched, so the Frame can render a
+        # rich item (icon + palette) when the registry reports them open.
+        # Keyed by normalized app id. Apps opened outside the shell have no
+        # bundle here and are tracked as ids only.
+        self._launched_bundles = {}
+        # Keep the Frame's rendered running-list in sync with the shared
+        # registry — the registry is the single source of truth for what
+        # is open (frame-views spec); the Frame only renders it.
+        app_state.subscribe(self._sync_frame_running)
+
         self.toplevel_tracker = TopLevelTracker(
             on_open=self._on_toplevel_open,
             on_close=self._on_toplevel_close,
+            on_focus=self._on_toplevel_focus,
         )
         self.toplevel_tracker.start()
         hook_registry.subscribe(
@@ -136,7 +148,9 @@ class SugarShell(Gtk.Application):
 
         icon_size = icon_size_px(self.settings_store.get("icon_size"))
         self.pie_menu = SugarPieMenu(
-            on_settings=self._on_settings_requested, icon_size=icon_size
+            on_settings=self._on_settings_requested,
+            on_launched=self._on_app_launched,
+            icon_size=icon_size,
         )
         self.app_grid = SugarAppGrid(
             on_launched=self._on_app_launched,
@@ -391,7 +405,8 @@ class SugarShell(Gtk.Application):
         self.toplevel_tracker.stop()
 
     def _on_app_launched(self, bundle):
-        self.frame.add_running(bundle)
+        self._launched_bundles[normalize_app_id(bundle.app_id)] = bundle
+        app_state.add_open(bundle.app_id)
         if self.settings_store.get("accent_color"):
             return
         color = dominant_color_hex(bundle.icon)
@@ -427,13 +442,21 @@ class SugarShell(Gtk.Application):
         self._bg_overlay.queue_draw()
 
     def _on_toplevel_open(self, wayland_app_id, title):
-        pass
+        # A window opened for an app we did not launch (or a second window):
+        # record it open so its icon lights up everywhere.
+        app_state.add_open(wayland_app_id)
 
     def _on_toplevel_close(self, wayland_app_id, title):
         if self.toplevel_tracker.available is not True:
             return
+        # Only drop the app once its *last* window is gone.
         if not self._has_open_toplevel(wayland_app_id):
-            self.frame.remove_running(wayland_app_id)
+            app_state.remove_open(wayland_app_id)
+
+    def _on_toplevel_focus(self, wayland_app_id):
+        # Fired only where the compositor exposes the `activated` state;
+        # otherwise focus stays None and views degrade to two states.
+        app_state.set_focused(wayland_app_id)
 
     def _has_open_toplevel(self, wayland_app_id):
         return any(
@@ -444,7 +467,24 @@ class SugarShell(Gtk.Application):
     def _on_app_process_closed(self, app_id):
         if self.toplevel_tracker.available is True:
             return
-        self.frame.remove_running(app_id)
+        app_state.remove_open(app_id)
+        self._launched_bundles.pop(normalize_app_id(app_id), None)
+
+    def _sync_frame_running(self):
+        """Render the Frame's running list from the shared registry.
+
+        Adds a Frame item for each open app we have a bundle for and are
+        not already showing; removes items whose app is no longer open.
+        Apps opened outside the shell (no bundle) are tracked in the
+        registry for icon state but not shown as Frame items, matching the
+        prior behavior where the Frame only listed shell-launched apps.
+        """
+        open_ids = app_state.open_app_ids
+        for norm_id, bundle in self._launched_bundles.items():
+            if norm_id in open_ids:
+                self.frame.add_running(bundle)
+            else:
+                self.frame.remove_running(bundle.app_id)
 
 
 def main():

@@ -45,6 +45,14 @@ if _HAS_PYWAYLAND:
     from sugar_next._wayland_wlr.wlr_foreign_toplevel_management_unstable_v1.zwlr_foreign_toplevel_manager_v1 import (
         ZwlrForeignToplevelManagerV1,
     )
+    from sugar_next._wayland_wlr.wlr_foreign_toplevel_management_unstable_v1.zwlr_foreign_toplevel_handle_v1 import (
+        ZwlrForeignToplevelHandleV1,
+    )
+
+    #: `activated` in the protocol's state enum — the focused toplevel.
+    _STATE_ACTIVATED = ZwlrForeignToplevelHandleV1.state.activated
+else:
+    _STATE_ACTIVATED = 2
 
 _PROTOCOL_NAME = "zwlr_foreign_toplevel_manager_v1"
 
@@ -56,9 +64,12 @@ class TopLevelTracker:
     via GLib.idle_add — safe to touch widgets from them directly.
     """
 
-    def __init__(self, on_open=None, on_close=None):
+    def __init__(self, on_open=None, on_close=None, on_focus=None):
         self._on_open = on_open
         self._on_close = on_close
+        #: Called with the app_id of the newly-focused toplevel (or None
+        #: when focus leaves all tracked toplevels), on the GTK main thread.
+        self._on_focus = on_focus
         self._thread = None
         self._display = None
         self._running = False
@@ -135,7 +146,7 @@ class TopLevelTracker:
                     pass
 
     def _on_toplevel_created(self, _manager, handle):
-        state = {"app_id": None, "title": None}
+        state = {"app_id": None, "title": None, "activated": False}
         self._toplevels[handle.id] = state
 
         def on_app_id(_handle, app_id):
@@ -144,16 +155,46 @@ class TopLevelTracker:
         def on_title(_handle, title):
             state["title"] = title
 
+        def on_state(_handle, states):
+            # The `state` event carries the *full* current state array;
+            # `activated` present means this toplevel now holds focus. A
+            # compositor sends it on this handle when it gains focus and on
+            # the previously-focused handle when it loses it, so tracking
+            # per-handle and emitting the currently-activated app_id keeps
+            # the registry's single focused id correct.
+            state["activated"] = _STATE_ACTIVATED in list(states or [])
+
         def on_closed(_handle):
             self._toplevels.pop(handle.id, None)
             if self._on_close is not None:
                 GLib.idle_add(self._on_close, state.get("app_id"), state.get("title"))
+            if state.get("activated") and self._on_focus is not None:
+                # The focused window closed; recompute focus from whatever
+                # remains activated (usually nothing until the next state
+                # event arrives).
+                GLib.idle_add(self._emit_focus)
 
         def on_done(_handle):
             if self._on_open is not None:
                 GLib.idle_add(self._on_open, state.get("app_id"), state.get("title"))
+            if self._on_focus is not None:
+                GLib.idle_add(self._emit_focus)
 
         handle.dispatcher["app_id"] = on_app_id
         handle.dispatcher["title"] = on_title
+        handle.dispatcher["state"] = on_state
         handle.dispatcher["closed"] = on_closed
         handle.dispatcher["done"] = on_done
+
+    def _emit_focus(self):
+        """Report the app_id of the currently-activated toplevel, if any."""
+        focused = next(
+            (
+                s.get("app_id")
+                for s in self._toplevels.values()
+                if s.get("activated")
+            ),
+            None,
+        )
+        if self._on_focus is not None:
+            self._on_focus(focused)

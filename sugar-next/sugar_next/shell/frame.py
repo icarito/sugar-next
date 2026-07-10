@@ -15,7 +15,13 @@ from gi.repository import Gdk, Gtk
 
 
 class _FrameItem(Gtk.Box):
-    """Icon in the frame bar. Click launches; right-click opens a palette."""
+    """Icon in the frame bar for a running activity.
+
+    Click asks the window-observation adapter to focus the activity's
+    window; right-click opens a palette. Used only for the Frame's
+    running list (see add_running) — launching new apps happens through
+    the App Grid/pie menu's own widget, not this one.
+    """
 
     def __init__(self, bundle, palette_actions, on_activate=None,
                  on_palette_shown=None, on_palette_closed=None):
@@ -68,9 +74,13 @@ class _FrameItem(Gtk.Box):
         button.add_controller(right_click)
 
     def _on_clicked(self, _button, on_activate):
-        if on_activate is not None and on_activate(self.bundle):
-            return
-        self.bundle.launch()
+        # Focus-or-nothing: a running Frame entry must never fall back to
+        # launching a new instance just because the active
+        # window-observation adapter failed to focus the existing window
+        # (e.g. the app already closed, or the adapter call errored) —
+        # that would spawn a duplicate process behind the learner's back.
+        if on_activate is not None:
+            on_activate(self.bundle)
 
     def _on_palette_action(self, button, callback):
         self._palette.popdown()

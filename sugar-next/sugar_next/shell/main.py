@@ -22,6 +22,14 @@ from sugar_next.shell.settings import SettingsPanel
 from sugar_next.shell.settings_store import SettingsStore, icon_size_px
 from sugar_next.shell.toplevel_tracker import TopLevelTracker
 
+#: The shell's own application id (matches SugarShell.__init__'s
+#: Gtk.Application id below). Both window-observation adapters report
+#: every window they see, including the shell's own toplevel — without
+#: filtering this out, Sugar Next would show itself as a "running app" in
+#: its own Frame, and clicking that entry would try to focus/launch a
+#: second instance of itself.
+_SHELL_APP_ID = normalize_app_id("org.sugarlabs.SugarNext")
+
 
 def _standalone_protocol_available() -> bool:
     """Standalone-mode detection (shell-startup spec): probe the compositor.
@@ -591,6 +599,10 @@ class SugarShell(Gtk.Application):
         self._bg_overlay.queue_draw()
 
     def _on_toplevel_open(self, wayland_app_id, title):
+        if normalize_app_id(wayland_app_id) == _SHELL_APP_ID:
+            # The shell's own window — see _SHELL_APP_ID's comment. Never
+            # tracked, never shown as a running app in its own Frame.
+            return
         # A window opened for an app we did not launch (or a second window):
         # record it open so its icon lights up everywhere.
         app_state.add_open(wayland_app_id)
@@ -607,6 +619,8 @@ class SugarShell(Gtk.Application):
                 self._launched_bundles[norm_id] = bundle
 
     def _on_toplevel_close(self, wayland_app_id, title):
+        if normalize_app_id(wayland_app_id) == _SHELL_APP_ID:
+            return
         # The availability guard only applies to the standalone adapter
         # (toplevel_tracker): the protocol may be unavailable on a given
         # compositor, in which case its close events are unreliable and
@@ -627,6 +641,11 @@ class SugarShell(Gtk.Application):
     def _on_toplevel_focus(self, wayland_app_id):
         # Fired only where the compositor exposes the `activated` state;
         # otherwise focus stays None and views degrade to two states.
+        # wayland_app_id is None when focus left every tracked toplevel —
+        # that's a real, meaningful state and must pass through; only the
+        # shell's own id (see _SHELL_APP_ID) is filtered.
+        if wayland_app_id is not None and normalize_app_id(wayland_app_id) == _SHELL_APP_ID:
+            return
         app_state.set_focused(wayland_app_id)
 
     def _has_open_toplevel(self, wayland_app_id):

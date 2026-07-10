@@ -1,56 +1,18 @@
 ## Purpose
 
-Define the Sugar Next Home View — its pluggable layout system, Settings
-panel, color/theming model, and desktop-environment citizenship (XDG paths
-and FreeDesktop integration) — so the shell's presentation layer is
-configurable, themeable, and a well-behaved Linux desktop citizen.
+Define the Sugar Next Home View — its Settings panel, color/theming model,
+and desktop-environment citizenship (XDG paths and FreeDesktop
+integration) — so the shell's presentation layer is configurable,
+themeable, and a well-behaved Linux desktop citizen. View selection
+(Desktop, Apps, Search) is defined in the `frame-views` capability, not
+here.
 
 ## Requirements
-
-### Requirement: Pluggable Home View layouts
-The shell SHALL provide three built-in Home View layouts — desktop grid,
-app grid, and search-first — implementing a common layout interface, and
-SHALL allow additional layouts to be provided by extensions.
-
-#### Scenario: Switching layout at runtime
-- **WHEN** the learner selects a different Home View layout from Settings
-- **THEN** the shell swaps the active layout without restarting
-
-#### Scenario: Extension-provided layout
-- **WHEN** an installed extension registers a layout implementing the
-  Home View layout interface
-- **THEN** it appears as a selectable option in Settings
-
-### Requirement: Desktop grid layout
-The desktop grid layout SHALL display app icons floating on a
-user-selectable background image and SHALL support container folders
-that expand into sub-grids.
-
-#### Scenario: Opening a container folder
-- **WHEN** the learner clicks a container folder icon
-- **THEN** the layout expands into a sub-grid showing that folder's apps
-
-### Requirement: App grid layout
-The app grid layout SHALL display apps in a `Gtk.FlowBox` with a search
-bar and no visible background image, matching the existing Fase 1
-prototype behavior.
-
-#### Scenario: Filtering apps by search
-- **WHEN** the learner types in the search bar
-- **THEN** the grid filters to matching apps in real time
-
-### Requirement: Search-first layout
-The search-first layout SHALL show no app icons until the learner types
-in the search bar.
-
-#### Scenario: Empty state
-- **WHEN** the search-first layout is active and the search bar is empty
-- **THEN** no app icons are visible
 
 ### Requirement: Settings panel
 The shell SHALL provide a Settings panel accessible from the Frame or a
 keybinding, exposing background image, accent color, contrast, icon size,
-Home View layout, and extension management controls.
+and extension management controls.
 
 #### Scenario: Changing accent color
 - **WHEN** the learner picks a new accent color in Settings

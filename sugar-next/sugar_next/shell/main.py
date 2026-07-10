@@ -8,8 +8,7 @@ from gi.repository import Gdk, Gtk, GLib
 
 from sugar_next.api.hooks import registry as hook_registry
 from sugar_next.shell.app_grid import SugarAppGrid
-from sugar_next.shell.search_first import SugarSearchFirst
-from sugar_next.shell.desktop_grid import SugarDesktopGrid
+from sugar_next.shell.pie_menu import SugarPieMenu
 from sugar_next.shell.frame import SugarFrame
 from sugar_next.shell.home_view import HomeView
 from sugar_next.shell.theme import manager as theme_manager
@@ -136,36 +135,27 @@ class SugarShell(Gtk.Application):
         )
 
         icon_size = icon_size_px(self.settings_store.get("icon_size"))
+        self.pie_menu = SugarPieMenu(
+            on_settings=self._on_settings_requested, icon_size=icon_size
+        )
         self.app_grid = SugarAppGrid(
             on_launched=self._on_app_launched,
-            on_pin=self.frame.pin_favorite,
+            on_pin=self.pie_menu.pin_favorite,
             icon_size=icon_size,
         )
-        self.search_first = SugarSearchFirst(
-            on_launched=self._on_app_launched, icon_size=icon_size
-        )
-        self.search_first.set_bundles(self.app_grid._load_bundles())
-
-        bundled = self.app_grid._load_bundles()
-        self.desktop_grid = SugarDesktopGrid(
-            background_path=self.settings_store.get("background_path")
-        )
-        self.desktop_grid.set_on_launch(self._on_app_launched)
-        self.desktop_grid.set_icon_size(icon_size)
-        self.desktop_grid.populate(bundled)
 
         self.home_view = HomeView()
         self.home_view.add_view(self.app_grid)
-        self.home_view.add_view(self.search_first)
-        self.home_view.add_view(self.desktop_grid, set_active=True)
+        self.home_view.add_view(self.pie_menu, set_active=True)
 
-        # Views are navigated from the Frame (Desktop / Apps / Search),
-        # not selected in Settings. Map the user-facing view onto the
-        # underlying layout id. Order here is the Frame button order.
+        # Views are navigated from the Frame (Desktop / Apps), not selected
+        # in Settings. Map the user-facing view onto the underlying layout
+        # id. Order here is the Frame button order. Search view is removed
+        # (desktop-pie-menu change); F3 is reserved for a future
+        # Groups/Neighborhood view.
         self._views = [
             ("desktop-grid", "Desktop"),
             ("app-grid", "Apps"),
-            ("search-first", "Search"),
         ]
 
         # Restore the last active view, or start in Desktop on first run.
@@ -184,8 +174,8 @@ class SugarShell(Gtk.Application):
         self._background_picture.add_css_class("home-view-bg")
 
         # Background adjustment overlay. A single flat wash drawn over the
-        # wallpaper and *under* the Home View, so every layout (app-grid,
-        # search-first, desktop-grid) sees the same treatment.
+        # wallpaper and *under* the Home View, so every view (app-grid,
+        # desktop-grid pie menu) sees the same treatment.
         #   brightness: -1.0 (black) .. 0 (none) .. +1.0 (white)
         #   contrast:    0.0 (none)  .. 1.0 (flat mid-grey veil)
         self._bg_brightness = float(self.settings_store.get("bg_brightness"))
@@ -264,7 +254,6 @@ class SugarShell(Gtk.Application):
         self.settings_panel = SettingsPanel(
             home_view=self.home_view, store=self.settings_store, shell=self
         )
-        self.frame.set_settings_panel(self.settings_panel)
         self.frame.set_view_switcher(
             self._views,
             self._on_view_selected,
@@ -335,11 +324,12 @@ class SugarShell(Gtk.Application):
             self._frame_manually_dismissed = True
         self.frame.set_reveal_child(False)
 
-    #: Direct keybindings to views (frame-views spec): F1/F2/F3.
+    #: Direct keybindings to views (frame-views spec): F1/F2. F3 is
+    #: reserved for a future Groups/Neighborhood view (desktop-pie-menu
+    #: change removed Search, which previously used F3).
     _VIEW_KEYS = {
         Gdk.KEY_F1: "desktop-grid",
         Gdk.KEY_F2: "app-grid",
-        Gdk.KEY_F3: "search-first",
     }
 
     def _on_key_pressed(self, controller, keyval, keycode, state):
@@ -362,10 +352,13 @@ class SugarShell(Gtk.Application):
             if self.settings_panel.is_visible():
                 self.settings_panel.popdown()
             else:
-                self.frame.reveal()
                 self.settings_panel.popup()
             return True
         return False
+
+    def _on_settings_requested(self):
+        # Called when the pie menu's center button is clicked.
+        self.settings_panel.popup()
 
     def _activate_view(self, view_id):
         """Switch to *view_id*, persist it, and sync the Frame switcher."""

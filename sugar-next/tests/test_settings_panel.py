@@ -7,7 +7,7 @@ import pytest
 
 from sugar_next.shell.home_view import HomeView
 from sugar_next.shell.app_grid import SugarAppGrid
-from sugar_next.shell.search_first import SugarSearchFirst
+from sugar_next.shell.pie_menu import SugarPieMenu
 from sugar_next.shell.settings import SettingsPanel
 from sugar_next.shell.settings_store import SettingsStore
 
@@ -24,22 +24,24 @@ def test_builds_without_home_view(tmp_path):
     assert panel.get_child() is not None
 
 
-def test_builds_with_home_view(tmp_path):
+def test_builds_with_home_view(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
     store = SettingsStore(tmp_path / "settings.json")
     home_view = HomeView()
     home_view.add_view(SugarAppGrid(), set_active=True)
-    home_view.add_view(SugarSearchFirst())
+    home_view.add_view(SugarPieMenu())
     panel = SettingsPanel(home_view=home_view, store=store)
     assert panel.get_child() is not None
 
 
-def test_settings_has_no_layout_selector(tmp_path):
+def test_settings_has_no_layout_selector(tmp_path, monkeypatch):
     # Views are chosen from the Frame, not Settings (frame-views spec):
     # the layout selector and its handler are gone.
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
     store = SettingsStore(tmp_path / "settings.json")
     home_view = HomeView()
     home_view.add_view(SugarAppGrid(), set_active=True)
-    home_view.add_view(SugarSearchFirst())
+    home_view.add_view(SugarPieMenu())
     panel = SettingsPanel(home_view=home_view, store=store)
     assert not hasattr(panel, "_on_layout_changed")
 

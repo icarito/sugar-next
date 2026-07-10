@@ -3,7 +3,7 @@ XDG_CONFIG_HOME / XDG_DATA_HOME rather than a hardcoded home path.
 """
 
 from sugar_next.api.hooks import extensions_dir
-from sugar_next.shell.frame import _favorites_file
+from sugar_next.shell.pie_menu import _favorites_file
 from sugar_next.shell.settings_store import config_dir as settings_config_dir
 from sugar_next.shell.theme import config_dir as theme_config_dir
 

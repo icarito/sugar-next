@@ -1,4 +1,3 @@
-import json
 import types
 
 import gi
@@ -31,24 +30,6 @@ def test_toggle(tmp_path, monkeypatch):
     assert frame.get_reveal_child()
     frame.reveal()
     assert frame.get_reveal_child()
-
-
-def test_pin_persists_and_reloads(tmp_path, monkeypatch):
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
-    frame = SugarFrame()
-    frame.pin_favorite(_stub_bundle("fake-app.desktop"))
-    frame.pin_favorite(_stub_bundle("fake-app.desktop"))  # no duplicates
-
-    favorites_file = tmp_path / "sugar-next" / "favorites.json"
-    assert json.loads(favorites_file.read_text()) == ["fake-app.desktop"]
-
-    # A fresh frame loads them back; the uninstalled app id is
-    # skipped in the UI but kept in the list.
-    frame2 = SugarFrame()
-    assert frame2._favorite_ids == ["fake-app.desktop"]
-
-    frame2._unpin_favorite(_stub_bundle("fake-app.desktop"))
-    assert json.loads(favorites_file.read_text()) == []
 
 
 def test_add_running_deduplicates(tmp_path, monkeypatch):
@@ -108,8 +89,7 @@ def test_view_switcher_selects_and_closes_frame(tmp_path, monkeypatch):
     frame = SugarFrame()
     chosen = []
     frame.set_view_switcher(
-        [("desktop-grid", "Desktop"), ("app-grid", "Apps"),
-         ("search-first", "Search")],
+        [("desktop-grid", "Desktop"), ("app-grid", "Apps")],
         on_select=chosen.append,
         active_id="desktop-grid",
     )

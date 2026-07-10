@@ -5,7 +5,7 @@ def test_defaults(tmp_path):
     store = SettingsStore(tmp_path / "settings.json")
     assert store.get("contrast") == "normal"
     assert store.get("icon_size") == "medium"
-    assert store.get("home_view_layout") == "app-grid"
+    assert store.get("home_view_layout") == "desktop-grid"
     assert store.get("accent_color") is None
     assert store.get("background_path") is None
 

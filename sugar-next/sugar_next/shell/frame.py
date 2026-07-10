@@ -1,27 +1,17 @@
-"""Sugar Next Frame — top-edge overlay with favorites and running apps.
+"""Sugar Next Frame — top-edge overlay, view switcher and running apps.
 
 Revealed by the top-right hot corner or F6 (Sugar's classic frame key).
-v0 shows pinned favorites plus apps launched this session; universal
-window listing needs compositor support and is future work (see the
-sugar-next design doc).
+Favorites and Settings moved into the Desktop pie menu (desktop-pie-menu
+change); the Frame is now a view switcher plus apps launched this
+session. Universal window listing needs compositor support and is future
+work (see the sugar-next design doc).
 """
-
-import json
-import os
-from pathlib import Path
 
 import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
-from gi.repository import Gdk, Gtk, Gio
-
-
-def _favorites_file() -> Path:
-    data_home = os.environ.get(
-        "XDG_DATA_HOME", os.path.expanduser("~/.local/share")
-    )
-    return Path(data_home) / "sugar-next" / "favorites.json"
+from gi.repository import Gdk, Gtk
 
 
 class _FrameItem(Gtk.Box):
@@ -146,9 +136,9 @@ class SugarFrame(Gtk.Revealer):
         bar.add_css_class("frame-bar")
         self.set_child(bar)
 
-        # View switcher on the far left — [Desktop] [Apps] [Search].
-        # Populated by set_view_switcher(); choosing a view is a
-        # navigation concern owned by the Frame, not Settings.
+        # View switcher on the far left — [Desktop] [Apps]. Populated by
+        # set_view_switcher(); choosing a view is a navigation concern
+        # owned by the Frame, not Settings.
         self._views_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=4
         )
@@ -158,31 +148,14 @@ class SugarFrame(Gtk.Revealer):
         self._view_buttons = {}
         self._on_view_selected = None
 
-        self._favorites_box = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL, spacing=4
-        )
-        bar.append(self._favorites_box)
-        bar.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
         self._running_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=4
         )
+        self._running_box.set_hexpand(True)
         bar.append(self._running_box)
 
-        self._settings_button = Gtk.Button()
-        self._settings_button.add_css_class("flat")
-        self._settings_button.set_icon_name("emblem-system-symbolic")
-        self._settings_button.set_has_frame(False)
-        self._settings_button.set_hexpand(True)
-        self._settings_button.set_halign(Gtk.Align.END)
-        icon = Gtk.Image.new_from_icon_name("emblem-system-symbolic")
-        icon.set_pixel_size(20)
-        self._settings_button.set_child(icon)
-        bar.append(self._settings_button)
-
         self._open_palettes = 0
-        self._favorite_ids = self._load_favorites()
         self._running_ids = set()
-        self._rebuild_favorites()
 
     # -- palettes ----------------------------------------------------------
 
@@ -208,16 +181,6 @@ class SugarFrame(Gtk.Revealer):
             on_palette_closed=self._on_palette_closed,
         )
 
-    @property
-    def settings_button(self):
-        return self._settings_button
-
-    def set_settings_panel(self, settings_window):
-        self._settings_panel = settings_window
-        self._settings_button.connect(
-            "clicked", lambda _b: settings_window.popup()
-        )
-
     # -- view switcher -----------------------------------------------------
 
     #: Symbolic icon per view. Falls back to a generic icon if a view id
@@ -225,7 +188,6 @@ class SugarFrame(Gtk.Revealer):
     _VIEW_ICONS = {
         "desktop-grid": "user-home-symbolic",
         "app-grid": "view-app-grid-symbolic",
-        "search-first": "system-search-symbolic",
     }
     _VIEW_ICON_FALLBACK = "view-grid-symbolic"
 
@@ -278,58 +240,6 @@ class SugarFrame(Gtk.Revealer):
     def reveal(self):
         self.set_reveal_child(True)
 
-    # -- favorites ---------------------------------------------------------
-
-    def pin_favorite(self, bundle):
-        if bundle.app_id in self._favorite_ids:
-            return
-        self._favorite_ids.append(bundle.app_id)
-        self._save_favorites()
-        self._rebuild_favorites()
-
-    def _unpin_favorite(self, bundle):
-        if bundle.app_id in self._favorite_ids:
-            self._favorite_ids.remove(bundle.app_id)
-            self._save_favorites()
-            self._rebuild_favorites()
-
-    def _rebuild_favorites(self):
-        from sugar_next.bundles.desktop_bundle import DesktopBundle
-
-        while child := self._favorites_box.get_first_child():
-            self._favorites_box.remove(child)
-        for app_id in self._favorite_ids:
-            try:
-                app_info = Gio.DesktopAppInfo.new(app_id)
-            except TypeError:
-                # App uninstalled since it was pinned.
-                app_info = None
-            if app_info is None:
-                continue
-            bundle = DesktopBundle(app_info)
-            item = self._make_item(
-                bundle,
-                palette_actions=[
-                    ("Unpin from favorites", self._unpin_favorite),
-                    ("Add to Journal (coming soon)", None),
-                ],
-            )
-            self._favorites_box.append(item)
-
-    def _load_favorites(self):
-        path = _favorites_file()
-        if path.is_file():
-            try:
-                return list(json.loads(path.read_text()))
-            except ValueError:
-                pass
-        return []
-
-    def _save_favorites(self):
-        path = _favorites_file()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(self._favorite_ids, indent=2))
-
     # -- running apps ------------------------------------------------------
 
     def add_running(self, bundle):
@@ -340,7 +250,6 @@ class SugarFrame(Gtk.Revealer):
         item = self._make_item(
             bundle,
             palette_actions=[
-                ("Pin to favorites", self.pin_favorite),
                 ("Add to Journal (coming soon)", None),
             ],
         )

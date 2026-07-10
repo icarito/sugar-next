@@ -14,7 +14,7 @@ _DEFAULTS = {
     "accent_color": None,
     "contrast": "normal",  # "normal" | "high"
     "icon_size": "medium",  # "small" | "medium" | "large"
-    "home_view_layout": "app-grid",
+    "home_view_layout": "desktop-grid",
     # Background wash applied over the wallpaper, under every Home View
     # layout. brightness: -1.0 (black) .. 0 .. +1.0 (white).
     # contrast: 0.0 (none) .. 1.0 (flat mid-grey veil).

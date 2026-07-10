@@ -30,8 +30,10 @@ _ACCENT_NAMES = [
 ]
 
 _KEYBINDINGS = [
-    ("F1 / F10", "Open/close Settings"),
+    ("F1", "Desktop view"),
+    ("F2", "Apps view"),
     ("F6", "Toggle the Frame"),
+    ("F10", "Open/close Settings"),
     ("Esc", "Close this dialog"),
 ]
 
@@ -398,8 +400,8 @@ class SettingsWindow(Gtk.Window):
         scrolled.set_child(box)
         scrolled.add_css_class("settings-tab-page")
 
-        # NOTE: no Home View layout selector here — views (Desktop / Apps /
-        # Search) are chosen from the Frame, not Settings (frame-views spec).
+        # NOTE: no Home View layout selector here — views (Desktop / Apps)
+        # are chosen from the Frame, not Settings (frame-views spec).
 
         # Icon size
         section2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)

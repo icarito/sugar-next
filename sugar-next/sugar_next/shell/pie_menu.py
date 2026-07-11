@@ -8,8 +8,6 @@ design doc — Settings moves out of the Frame into the pie menu).
 
 import json
 import math
-import os
-from pathlib import Path
 
 import gi
 
@@ -17,14 +15,9 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk
 
+from sugar_next.shell.app_ordering import favorites_file as _favorites_file
+from sugar_next.shell.app_ordering import load_favorites as _load_favorites_shared
 from sugar_next.shell.icon_state import bind_icon_state
-
-
-def _favorites_file() -> Path:
-    data_home = os.environ.get(
-        "XDG_DATA_HOME", os.path.expanduser("~/.local/share")
-    )
-    return Path(data_home) / "sugar-next" / "favorites.json"
 
 
 class _Petal(Gtk.Box):
@@ -140,7 +133,14 @@ class SugarPieMenu(Gtk.Fixed):
     #: Radius (px) of the circle the petals sit on.
     _RADIUS = 140
 
-    def __init__(self, on_settings=None, on_launched=None, icon_size=48):
+    def __init__(
+        self,
+        on_settings=None,
+        on_launched=None,
+        icon_size=48,
+        on_exit=None,
+        exit_label="Logout",
+    ):
         super().__init__()
         # Without expand, a Gtk.Fixed shrinks to its content's natural
         # size — with no petals, that's just the center button, so the
@@ -150,6 +150,12 @@ class SugarPieMenu(Gtk.Fixed):
         self.set_hexpand(True)
         self.set_vexpand(True)
         self._on_settings = on_settings
+        # Exit action for the center menu — "Logout" in standalone mode,
+        # "Close Sugar Next" when hosted. The shell decides which by
+        # passing the matching label and callback; the pie menu only
+        # renders the menu.
+        self._on_exit = on_exit
+        self._exit_label = exit_label
         # Called after launching an app so the shell can mark it open in
         # the app-state registry — the same hook the Apps grid uses, so a
         # pie-menu launch lights the icon up too.
@@ -173,10 +179,10 @@ class SugarPieMenu(Gtk.Fixed):
         self._empty_label.set_visible(False)
         self.put(self._empty_label, 0, 0)
 
-        self._center_button = Gtk.Button()
+        self._center_button = Gtk.MenuButton()
         self._center_button.add_css_class("pie-menu-center")
         self._center_button.set_icon_name("emblem-system-symbolic")
-        self._center_button.connect("clicked", self._on_center_clicked)
+        self._center_button.set_popover(self._build_center_menu())
         self.put(self._center_button, 0, 0)
 
         # Gtk.Fixed's do_size_allocate is not reliably invoked as an
@@ -232,13 +238,7 @@ class SugarPieMenu(Gtk.Fixed):
     # -- favorites -------------------------------------------------------
 
     def _load_favorites(self):
-        path = _favorites_file()
-        if path.is_file():
-            try:
-                return list(json.loads(path.read_text()))
-            except ValueError:
-                pass
-        return []
+        return _load_favorites_shared()
 
     def refresh_favorites(self):
         """Reload favorites.json and rebuild petals (e.g. pinned elsewhere)."""
@@ -297,9 +297,12 @@ class SugarPieMenu(Gtk.Fixed):
         GLib.idle_add(_fade)
 
     def _launch(self, bundle):
-        bundle.launch()
+        # Activation is delegated to the shell, which focuses the existing
+        # window if the app is already open, or launches it otherwise.
         if self._on_launched is not None:
             self._on_launched(bundle)
+        else:
+            bundle.launch()
 
     def _unpin(self, bundle):
         if bundle.app_id in self._favorite_ids:
@@ -312,9 +315,37 @@ class SugarPieMenu(Gtk.Fixed):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(self._favorite_ids, indent=2))
 
-    def _on_center_clicked(self, _button):
+    def _build_center_menu(self):
+        # The center opens a menu (Settings + a mode-appropriate exit),
+        # not the Settings panel directly. Built via a Gtk.MenuButton +
+        # Gtk.Popover so GTK owns the popover's parenting and lifecycle.
+        popover = Gtk.Popover()
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+
+        self._settings_item = Gtk.Button(label="Settings")
+        self._settings_item.add_css_class("flat")
+        self._settings_item.connect("clicked", self._on_settings_item)
+        box.append(self._settings_item)
+
+        self._exit_item = None
+        if self._on_exit is not None:
+            self._exit_item = Gtk.Button(label=self._exit_label)
+            self._exit_item.add_css_class("flat")
+            self._exit_item.connect("clicked", self._on_exit_item)
+            box.append(self._exit_item)
+
+        popover.set_child(box)
+        return popover
+
+    def _on_settings_item(self, _button):
+        self._center_button.get_popover().popdown()
         if self._on_settings is not None:
             self._on_settings()
+
+    def _on_exit_item(self, _button):
+        self._center_button.get_popover().popdown()
+        if self._on_exit is not None:
+            self._on_exit()
 
     # -- Home View / shell API -------------------------------------------
 

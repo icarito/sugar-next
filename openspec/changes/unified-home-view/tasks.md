@@ -10,7 +10,7 @@
 - [x] 1.4 Wire button click → settings_store flip → theme_manager.set_dark_mode
 - [x] 1.5 Manual test: toggle in Frame, confirm all chrome switches theme
       instantly; restart, confirm persisted
-- [ ] 1.6 BUG (found in explore): `sun-symbolic` does not exist in Adwaita, so
+- [x] 1.6 BUG (found in explore): `sun-symbolic` does not exist in Adwaita, so
       the light-mode icon never renders (only the moon shows). Use
       `weather-clear-symbolic` (paired with `weather-clear-night-symbolic`)
 
@@ -88,22 +88,25 @@ icons appear.
 
 ## 8. Central menu (replaces direct Settings popup) + click-to-focus
 
-- [ ] 8.1 Spiral center button opens a popup MENU, not the Settings panel
+- [x] 8.1 Spiral center button opens a popup MENU, not the Settings panel
       directly. Menu items: Settings; plus Logout (standalone mode) or Close
-      Sugar Next (hosted mode), keyed off `self._standalone_mode`
-- [ ] 8.2 Clicking an app icon (spiral/grid/free) calls `focus_window()` if the
+      Sugar Next (hosted mode), keyed off `self._standalone_mode`. Center is a
+      Gtk.MenuButton + popover; covered by tests/test_pie_menu.py
+- [x] 8.2 Clicking an app icon (spiral/grid/free) calls `focus_window()` if the
       app is already open (reuse `_on_frame_running_activated`'s logic), else
-      launches — matching what the Frame's running list already does
-- [ ] 8.3 Manual test: click a running app's icon → its window raises instead
+      launches — matching what the Frame's running list already does. Shared
+      `_activate_app` in main.py; covered by tests/test_activate_app.py
+- [x] 8.3 Manual test: click a running app's icon → its window raises instead
       of relaunching; center menu shows the mode-appropriate exit action
 
 ## 9. MRU ordering (grid mode)
 
-- [ ] 9.1 Add `mru_order` (list of str, default []) to settings_store.py
-- [ ] 9.2 Update MRU list on every app launch (in main.py:_on_app_launched)
-- [ ] 9.3 Grid mode orders by MRU: favorites first, then recently launched,
-      then alphabetical (never-launched)
-- [ ] 9.4 Manual test: launch Firefox, launch Calculator → Calculator appears
+- [x] 9.1 Add `mru_order` (list of str, default []) to settings_store.py
+- [x] 9.2 Update MRU list on every app launch (in main.py:_on_app_launched)
+- [x] 9.3 Grid mode orders by MRU: favorites first, then recently launched,
+      then alphabetical (never-launched) — shared helper in app_ordering.py,
+      covered by tests/test_app_ordering.py
+- [x] 9.4 Manual test: launch Firefox, launch Calculator → Calculator appears
       before Firefox in grid; launch Firefox again → Firefox moves to top
 
 ## 10. Specs updates

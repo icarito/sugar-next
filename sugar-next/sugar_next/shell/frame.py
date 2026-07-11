@@ -188,7 +188,11 @@ class SugarFrame(Gtk.Revealer):
 
     def set_dark_mode(self, is_dark):
         """Update the theme toggle button icon based on the current mode."""
-        icon_name = "sun-symbolic" if is_dark else "weather-clear-night-symbolic"
+        icon_name = (
+            "weather-clear-symbolic"
+            if is_dark
+            else "weather-clear-night-symbolic"
+        )
         tooltip = "Switch to Light Mode" if is_dark else "Switch to Dark Mode"
 
         image = Gtk.Image.new_from_icon_name(icon_name)

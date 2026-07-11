@@ -60,9 +60,12 @@ class _AppGridCell(Gtk.Box):
             self._unbind_icon_state = None
 
     def _on_pressed(self, gesture, n_press, x, y):
-        self.bundle.launch()
+        # Activation is delegated to the shell, which focuses the existing
+        # window if the app is already open, or launches it otherwise.
         if self._on_launched is not None:
             self._on_launched(self.bundle)
+        else:
+            self.bundle.launch()
 
     def _on_right_click(self, gesture, n_press, x, y):
         popover = Gtk.Popover()
@@ -177,8 +180,12 @@ class SugarAppGrid(Gtk.Box):
 
     def _load_bundles(self):
         from sugar_next.bundles.desktop_bundle import DesktopBundle
+        from sugar_next.shell.app_ordering import load_favorites, order_apps
+        from sugar_next.shell.settings_store import SettingsStore
 
-        return DesktopBundle.sorted_apps()
+        apps = DesktopBundle.sorted_apps()
+        store = SettingsStore()
+        return order_apps(apps, load_favorites(), store.get("mru_order"))
 
     def set_icon_size(self, icon_size):
         self._icon_size = icon_size

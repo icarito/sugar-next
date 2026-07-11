@@ -48,12 +48,32 @@ def test_pin_persists_and_reloads(tmp_path, monkeypatch):
     assert json.loads(favorites_file.read_text()) == []
 
 
-def test_settings_callback_fires_on_center_click(tmp_path, monkeypatch):
+def test_settings_item_fires_settings_callback(tmp_path, monkeypatch):
+    # The center opens a menu; the "Settings" item (not the center click)
+    # fires the settings callback.
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
     called = []
     menu = SugarPieMenu(on_settings=lambda: called.append(True))
-    menu._center_button.emit("clicked")
+    menu._settings_item.emit("clicked")
     assert called == [True]
+
+
+def test_exit_item_present_and_fires_when_configured(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    exited = []
+    menu = SugarPieMenu(
+        on_exit=lambda: exited.append(True), exit_label="Close Sugar Next"
+    )
+    assert menu._exit_item is not None
+    assert menu._exit_item.get_label() == "Close Sugar Next"
+    menu._exit_item.emit("clicked")
+    assert exited == [True]
+
+
+def test_no_exit_item_without_callback(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    menu = SugarPieMenu()
+    assert menu._exit_item is None
 
 
 def test_launch_notifies_on_launched():

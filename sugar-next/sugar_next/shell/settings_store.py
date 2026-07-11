@@ -16,6 +16,12 @@ _DEFAULTS = {
     "icon_size": "medium",  # "small" | "medium" | "large"
     "home_view_layout": "desktop-grid",
     "dark_mode": False,
+    # Most-recently-used app ids, most-recent first. Grid mode orders by
+    # this (favorites first, then MRU, then alphabetical for the rest).
+    "mru_order": [],
+    # Free-mode manual placement: {app_id: [x_fraction, y_fraction]} in
+    # 0..1 of the canvas, so positions survive resolution changes.
+    "free_positions": {},
     # Background wash applied over the wallpaper, under every Home View
     # layout. brightness: -1.0 (black) .. 0 .. +1.0 (white).
     # contrast: 0.0 (none) .. 1.0 (flat mid-grey veil).

@@ -231,11 +231,13 @@ class SugarShell(Gtk.Application):
         icon_size = icon_size_px(self.settings_store.get("icon_size"))
         self.pie_menu = SugarPieMenu(
             on_settings=self._on_settings_requested,
-            on_launched=self._on_app_launched,
+            on_launched=self._activate_app,
             icon_size=icon_size,
+            on_exit=self._on_exit_requested,
+            exit_label="Logout" if self._standalone_mode else "Close Sugar Next",
         )
         self.app_grid = SugarAppGrid(
-            on_launched=self._on_app_launched,
+            on_launched=self._activate_app,
             on_pin=self.pie_menu.pin_favorite,
             icon_size=icon_size,
         )
@@ -485,8 +487,16 @@ class SugarShell(Gtk.Application):
         return False
 
     def _on_settings_requested(self):
-        # Called when the pie menu's center button is clicked.
+        # Chosen from the center menu's "Settings" item.
         self.settings_panel.popup()
+
+    def _on_exit_requested(self):
+        # Center-menu exit action. In standalone mode this is "Logout"
+        # (Sugar owns the session); when hosted it is "Close Sugar Next"
+        # (the host session keeps running). Both quit this application;
+        # standalone session teardown, when integrated with a session
+        # manager, would hook in here.
+        self.quit()
 
     def _activate_view(self, view_id):
         """Switch to *view_id*, persist it, and sync the Frame switcher."""
@@ -530,10 +540,18 @@ class SugarShell(Gtk.Application):
     def _on_app_launched(self, bundle):
         self._launched_bundles[normalize_app_id(bundle.app_id)] = bundle
         app_state.add_open(bundle.app_id)
+        self._record_mru(bundle.app_id)
         if self.settings_store.get("accent_color"):
             return
         color = dominant_color_hex(bundle.icon)
         theme_manager.set_accent_tint(color)
+
+    def _record_mru(self, app_id):
+        # Promote *app_id* to the front of the most-recently-used list.
+        norm = normalize_app_id(app_id)
+        order = [a for a in self.settings_store.get("mru_order") if a != norm]
+        order.insert(0, norm)
+        self.settings_store.set("mru_order", order)
 
     def _draw_bg_overlay(self, area, cr, width, height):
         # Saturation: cross-fade a greyscale copy over the color image.
@@ -678,6 +696,9 @@ class SugarShell(Gtk.Application):
         )
 
     def _on_frame_running_activated(self, bundle):
+        return self._focus_window(bundle)
+
+    def _focus_window(self, bundle):
         # Ask whichever window-observation adapter is active to focus the
         # window natively on the host or session compositor (window-
         # observation spec: "Activating a running entry focuses the
@@ -693,6 +714,17 @@ class SugarShell(Gtk.Application):
         if self.toplevel_tracker is not None:
             return self.toplevel_tracker.focus(normalized)
         return False
+
+    def _activate_app(self, bundle):
+        # Clicking an app icon (pie menu / grid) focuses the existing
+        # window if the app is already open, and launches otherwise —
+        # matching what the Frame's running list already does. Post-launch
+        # bookkeeping stays in _on_app_launched, called only on a launch.
+        if app_state.is_open(bundle.app_id):
+            self._focus_window(bundle)
+            return
+        bundle.launch()
+        self._on_app_launched(bundle)
 
     def _on_app_process_closed(self, app_id):
         # Always remove from app_state when the process exits — the

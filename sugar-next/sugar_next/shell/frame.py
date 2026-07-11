@@ -169,12 +169,36 @@ class SugarFrame(Gtk.Revealer):
         self._running_box.set_hexpand(True)
         bar.append(self._running_box)
 
+        self._theme_button = Gtk.Button()
+        self._theme_button.add_css_class("flat")
+        self._theme_button.add_css_class("frame-view-button")
+        self._theme_button.connect("clicked", self._on_theme_clicked)
+        bar.append(self._theme_button)
+
+        self._on_theme_toggle = None
         self._open_palettes = 0
         self._running_ids = set()
         self._on_running_activated = None
 
     def set_running_activated_callback(self, callback):
         self._on_running_activated = callback
+
+    def set_theme_toggle_callback(self, callback):
+        self._on_theme_toggle = callback
+
+    def set_dark_mode(self, is_dark):
+        """Update the theme toggle button icon based on the current mode."""
+        icon_name = "sun-symbolic" if is_dark else "weather-clear-night-symbolic"
+        tooltip = "Switch to Light Mode" if is_dark else "Switch to Dark Mode"
+
+        image = Gtk.Image.new_from_icon_name(icon_name)
+        image.set_pixel_size(20)
+        self._theme_button.set_child(image)
+        self._theme_button.set_tooltip_text(tooltip)
+
+    def _on_theme_clicked(self, _button):
+        if self._on_theme_toggle is not None:
+            self._on_theme_toggle()
 
     # -- palettes ----------------------------------------------------------
 

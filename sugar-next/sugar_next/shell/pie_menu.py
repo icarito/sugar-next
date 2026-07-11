@@ -107,6 +107,12 @@ class SugarPieMenu(Gtk.Fixed):
         .pie-menu-petal:hover {
             background: rgba(255,255,255,0.20);
         }
+        .pie-menu-petal image {
+            transition: -gtk-icon-filter 150ms ease;
+        }
+        .pie-menu-petal:hover image {
+            -gtk-icon-filter: brightness(1.15) saturate(1.2);
+        }
         .pie-menu-petal-menu {
             min-width: 20px;
             min-height: 20px;

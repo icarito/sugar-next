@@ -39,30 +39,30 @@ The Home View gains three *layout modes*, orthogonal to the *filter* axis
 (section 5). A mode decides how icons are arranged; a filter decides which
 icons appear.
 
-- [ ] 4.1 Create `UnifiedHomeView` widget that owns the three modes. Spiral
-      and grid subsume today's `SugarPieMenu` and `SugarAppGrid` rendering
-- [ ] 4.2 Spiral mode: radial layout that grows into concentric rings as the
-      icon count exceeds one ring (classic Sugar RingLayout behavior), so
-      Spiral + "All apps" (50+) stays legible instead of one huge circle
-- [ ] 4.3 Grid mode: flow/grid layout (today's app grid), MRU-ordered
-- [ ] 4.4 Free mode: manual x/y placement — each icon draggable to any
-      position, persisted per app id in SettingsStore
-- [ ] 4.5 Default on shell start: Spiral mode
+- [x] 4.1 Create `UnifiedHomeView` widget that owns the modes (home_view.py).
+      Spiral and grid subsume today's `SugarPieMenu`/`SugarAppGrid` via a new
+      `populate(bundles)` on each; covered by tests/test_unified_home_view.py
+- [x] 4.2 Spiral mode: radial layout that grows into concentric rings as the
+      icon count exceeds one ring (ring_layout.py, tested in
+      tests/test_ring_layout.py), so Spiral + "All apps" stays legible
+- [x] 4.3 Grid mode: flow/grid layout (today's app grid), MRU-ordered
+- [ ] 4.4 Free mode: manual x/y placement — DEFERRED to a follow-up change
+      (most complex, least immediate value per design.md Risks)
+- [x] 4.5 Default on shell start: Spiral mode
 - [ ] 4.6 Manual test: switch modes, confirm the same filtered icon set
-      re-lays-out in each; Free-mode positions survive restart
+      re-lays-out in each (needs the shell wired + running — task 6/verify)
 
 ## 5. Filter axis (orthogonal to mode)
 
-- [ ] 5.1 Filter has four values: Favorites+Active (default), Favorites,
-      Active, All. Sourced from favorites.json (pinned) and `app_state`
-      (open) — no new bookkeeping
-- [ ] 5.2 Default filter on shell start: Favorites+Active (union) — never an
-      empty screen even before anything is launched
-- [ ] 5.3 Filter selector lives in the Frame (not a permanent command bar —
-      the Frame still appears via hot corner / reveal as today)
-- [ ] 5.4 Any mode × any filter is a valid combination (6 total)
-- [ ] 5.5 Manual test: each filter value narrows the icon set; open an app not
-      pinned → it appears under Active and Favorites+Active but not Favorites
+- [x] 5.1 Filter has four values: Favorites+Active (default), Favorites,
+      Active, All (app_ordering.filter_apps). Sourced from favorites.json and
+      `app_state` — no new bookkeeping; tested in tests/test_app_ordering.py
+- [x] 5.2 Default filter on shell start: Favorites+Active (union) — the view
+      subscribes to app_state so it stays live
+- [ ] 5.3 Filter selector lives in the Frame (needs Frame wiring — task 7)
+- [x] 5.4 Any mode × any filter is a valid combination (verified in
+      tests/test_unified_home_view.py)
+- [ ] 5.5 Manual test: each filter narrows the set (needs shell running)
 
 ## 6. Mode navigation via scroll / gesture (F-keys are dead on modern laptops)
 

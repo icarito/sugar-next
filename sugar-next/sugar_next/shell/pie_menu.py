@@ -18,6 +18,7 @@ from gi.repository import Gdk, Gio, GLib, Gtk
 from sugar_next.shell.app_ordering import favorites_file as _favorites_file
 from sugar_next.shell.app_ordering import load_favorites as _load_favorites_shared
 from sugar_next.shell.icon_state import bind_icon_state
+from sugar_next.shell.ring_layout import ring_positions
 
 
 class _Petal(Gtk.Box):
@@ -226,13 +227,14 @@ class SugarPieMenu(Gtk.Fixed):
         count = len(self._petals)
         if count == 0:
             return
-        step = 2 * math.pi / count
-        for index, petal in enumerate(self._petals):
-            angle = -math.pi / 2 + index * step
+        # Grow into concentric rings as the count exceeds one ring, so many
+        # apps (Spiral + All) stay legible instead of one crowded circle.
+        positions = ring_positions(count)
+        for petal, (ux, uy, _ring) in zip(self._petals, positions):
             petal_w = petal.get_width() or 56
             petal_h = petal.get_height() or 56
-            x = cx + self._RADIUS * math.cos(angle) - petal_w / 2
-            y = cy + self._RADIUS * math.sin(angle) - petal_h / 2
+            x = cx + self._RADIUS * ux - petal_w / 2
+            y = cy + self._RADIUS * uy - petal_h / 2
             self.move(petal, x, y)
 
     # -- favorites -------------------------------------------------------
@@ -253,14 +255,10 @@ class SugarPieMenu(Gtk.Fixed):
         self._save_favorites()
         self._rebuild()
 
-    def _rebuild(self):
+    def _favorite_bundles(self):
         from sugar_next.bundles.desktop_bundle import DesktopBundle
 
-        for petal in self._petals:
-            petal.dispose_icon_state()
-            self.remove(petal)
-        self._petals = []
-
+        bundles = []
         for app_id in self._favorite_ids:
             try:
                 app_info = Gio.DesktopAppInfo.new(app_id)
@@ -268,7 +266,27 @@ class SugarPieMenu(Gtk.Fixed):
                 app_info = None
             if app_info is None:
                 continue
-            bundle = DesktopBundle(app_info)
+            bundles.append(DesktopBundle(app_info))
+        return bundles
+
+    def populate(self, bundles):
+        """Render *bundles* radially (used by the unified Home View).
+
+        Unlike ``_rebuild`` (which shows favorites), this places whatever
+        the caller supplies — the filtered set — on concentric rings.
+        """
+        self._build_petals(bundles)
+
+    def _rebuild(self):
+        self._build_petals(self._favorite_bundles())
+
+    def _build_petals(self, bundles):
+        for petal in self._petals:
+            petal.dispose_icon_state()
+            self.remove(petal)
+        self._petals = []
+
+        for bundle in bundles:
             petal = _Petal(
                 bundle,
                 on_activate=self._launch,

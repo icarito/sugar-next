@@ -13,6 +13,24 @@ from pathlib import Path
 
 from sugar_next.shell.app_state import normalize_app_id
 
+#: The four filter values for the Home View's filter axis. FAV_ACTIVE (the
+#: union of pinned favorites and currently-open apps) is the default, so
+#: the view is never empty even before anything has been launched.
+FILTER_FAV_ACTIVE = "fav-active"
+FILTER_FAVORITES = "favorites"
+FILTER_ACTIVE = "active"
+FILTER_ALL = "all"
+
+FILTERS = (FILTER_FAV_ACTIVE, FILTER_FAVORITES, FILTER_ACTIVE, FILTER_ALL)
+
+#: User-facing labels for the filter selector.
+FILTER_LABELS = {
+    FILTER_FAV_ACTIVE: "Favorites + Active",
+    FILTER_FAVORITES: "Favorites",
+    FILTER_ACTIVE: "Active",
+    FILTER_ALL: "All",
+}
+
 
 def favorites_file() -> Path:
     data_home = os.environ.get(
@@ -53,3 +71,25 @@ def order_apps(apps, favorite_ids, mru_order):
         return (2, bundle.name.lower())
 
     return sorted(apps, key=rank)
+
+
+def filter_apps(apps, which, favorite_ids, open_ids):
+    """Return the subset of *apps* selected by the *which* filter value.
+
+    *favorite_ids* are pinned app ids; *open_ids* are currently-open app
+    ids (both compared by normalized id). ``FILTER_ALL`` returns every app;
+    ``FILTER_FAV_ACTIVE`` returns the union of favorites and open apps.
+    """
+    if which == FILTER_ALL:
+        return list(apps)
+
+    fav = {normalize_app_id(a) for a in favorite_ids}
+    active = {normalize_app_id(a) for a in open_ids}
+    if which == FILTER_FAVORITES:
+        allowed = fav
+    elif which == FILTER_ACTIVE:
+        allowed = active
+    else:  # FILTER_FAV_ACTIVE
+        allowed = fav | active
+
+    return [b for b in apps if normalize_app_id(b.app_id) in allowed]

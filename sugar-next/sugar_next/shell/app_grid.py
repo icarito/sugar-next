@@ -163,11 +163,27 @@ class SugarAppGrid(Gtk.Box):
         self._scrolled.set_child(self._flow_box)
 
         self._all_cells = []
+        self._search_text = ""
 
         self._populate()
 
+    def populate(self, bundles):
+        """Render an externally-supplied, already-ordered *bundles* list.
+
+        Used by the unified Home View, which owns the filter/order. The
+        standalone grid uses ``_populate`` (loads all apps) instead.
+        """
+        for cell in self._all_cells:
+            cell.dispose_icon_state()
+        while child := self._flow_box.get_first_child():
+            self._flow_box.remove(child)
+        self._all_cells = []
+        self._append_cells(bundles)
+
     def _populate(self):
-        bundles = self._load_bundles()
+        self._append_cells(self._load_bundles())
+
+    def _append_cells(self, bundles):
         for bundle in bundles:
             cell = _AppGridCell(
                 bundle,
@@ -197,6 +213,12 @@ class SugarAppGrid(Gtk.Box):
         self._populate()
 
     def _on_search_changed(self, entry):
+        self._search_text = entry.get_text()
+        self._flow_box.invalidate_filter()
+
+    def set_search_text(self, text):
+        """Filter the grid by *text* (used when search lives in the Frame)."""
+        self._search_text = text or ""
         self._flow_box.invalidate_filter()
 
     def on_activate(self):
@@ -211,7 +233,7 @@ class SugarAppGrid(Gtk.Box):
         # FlowBox wraps each cell in a Gtk.FlowBoxChild.
         if child is None:
             return False
-        text = self._search_entry.get_text()
+        text = self._search_text
         if not text:
             return True
         cell = child.get_child() if isinstance(child, Gtk.FlowBoxChild) else child

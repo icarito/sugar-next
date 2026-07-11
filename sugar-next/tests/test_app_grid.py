@@ -21,14 +21,14 @@ def test_filter_unwraps_flowboxchild():
     child = grid._flow_box.get_first_child()
     assert isinstance(child, Gtk.FlowBoxChild)
 
-    grid._search_entry.set_text("")
+    grid.set_search_text("")
     assert grid._filter_func(child) is True
 
     name = child.get_child().bundle.name
-    grid._search_entry.set_text(name[:4].lower())
+    grid.set_search_text(name[:4].lower())
     assert grid._filter_func(child) is True
 
-    grid._search_entry.set_text("definitely-no-such-app-xyz")
+    grid.set_search_text("definitely-no-such-app-xyz")
     assert grid._filter_func(child) is False
 
 

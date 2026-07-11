@@ -2,64 +2,104 @@
 
 ## Requirements
 
-### Requirement: Unified Home View with radial and grid modes
+### Requirement: Unified Home View with orthogonal mode and filter axes
 
-The Home View SHALL be a single view with two visual modes: a radial mode
-showing pinned favorites arranged in a circle, and a grid mode showing all
-installed applications in a scrollable grid. The transition between modes
-SHALL be animated (slide up/down).
+The Home View SHALL be a single view governed by two independent axes: a
+**mode** (layout) and a **filter** (set). The mode SHALL be one of Spiral
+(radial, growing into concentric rings as the icon count grows), Grid (flow
+layout), or Free (manual x/y placement). The filter SHALL be one of
+Favorites+Active, Favorites, Active, or All. Any mode SHALL be combinable with
+any filter.
 
-#### Scenario: Starting in radial mode
+#### Scenario: Default on start
 - **WHEN** the shell starts
-- **THEN** the Home View shows pinned favorites in radial (pie menu) mode
+- **THEN** the Home View shows Spiral mode with the Favorites+Active filter (the
+  union of pinned favorites and currently-open apps), so the view is never
+  empty even before anything has been launched
 
-#### Scenario: Switching to grid mode
-- **WHEN** the learner presses F2 or clicks the zoom toggle
-- **THEN** the view animates from radial to grid mode with a slide-up
-  transition; all installed apps are visible
+#### Scenario: Mode changes the layout, not the set
+- **WHEN** the learner changes the mode while a filter is active
+- **THEN** the same filtered set of icons is re-laid-out in the new mode
+  (spiral rings, grid flow, or free positions) without changing which icons
+  appear
 
-#### Scenario: Switching back to radial mode
-- **WHEN** the learner presses F1 or clicks the zoom toggle again
-- **THEN** the view animates from grid back to radial mode with a
-  slide-down transition
+#### Scenario: Filter changes the set, not the layout
+- **WHEN** the learner changes the filter while a mode is active
+- **THEN** the visible icon set narrows or widens (favorites, active, all, or
+  the union) while the current layout mode is preserved
 
-### Requirement: Global type-to-search
+#### Scenario: Spiral grows into rings
+- **WHEN** the filtered set has more icons than fit in one ring
+- **THEN** Spiral mode arranges them in concentric rings rather than a single
+  oversized circle, keeping Spiral + All legible
 
-Any printable character keypress that does not match a keyboard shortcut
-SHALL activate a search overlay on the Home View. The search overlay filters
-both radial and grid modes in real time. Escape or focus-loss dismisses the
-overlay.
+#### Scenario: Free-mode positions persist
+- **WHEN** the learner drags an icon to a position in Free mode and restarts
+- **THEN** that icon returns to the placed position; never-placed icons fall
+  back to an auto-layout
 
-#### Scenario: Typing on Desktop activates search
-- **WHEN** the learner presses a letter key while viewing the radial
-  (favorites) mode
-- **THEN** a search bar appears at the top of the Home View with that letter
-  entered; non-matching petals are hidden
+### Requirement: Mode navigation via scroll or gesture
 
-#### Scenario: Search persists across mode switch
-- **WHEN** the learner has a search active in radial mode and switches to
-  grid mode
-- **THEN** the same search string and filter apply in grid mode
+The Home View SHALL switch between modes via lateral scroll, shift+scroll, or a
+touch gesture — NOT via F1/F2 (which are unreachable on laptops whose firmware
+maps the F-row to hardware keys). Plain vertical scroll SHALL remain reserved
+for scrolling within a grid.
 
-#### Scenario: Dismissing search
-- **WHEN** the learner presses Escape or clicks outside the search bar
-- **THEN** the search overlay is dismissed and all items become visible again
+#### Scenario: Scroll switches mode
+- **WHEN** the learner performs a lateral scroll or shift+scroll anywhere on
+  the shell, including over the Frame
+- **THEN** the Home View switches to the adjacent layout mode
 
-### Requirement: MRU ordering with pinned-at-top
+#### Scenario: Vertical scroll still scrolls the grid
+- **WHEN** the learner scrolls vertically while in Grid mode with more icons
+  than fit on screen
+- **THEN** the grid scrolls its contents; the mode does not change
 
-The app grid SHALL order installed apps by most-recently-used, with pinned
-favorites always appearing first. Never-launched apps appear in alphabetical
-order after MRU apps.
+### Requirement: Search in the Frame respects the active filter
 
-#### Scenario: Launching an app moves it to top
-- **WHEN** the learner launches an app from any view
-- **THEN** that app moves to the top of the MRU list (right after pinned
-  favorites)
+The search entry SHALL live in the Frame (not inside the app grid). Typing
+SHALL filter whichever mode is active, restricted to the active filter's set.
 
-#### Scenario: First launch order
-- **WHEN** the learner opens the app grid for the first time with no history
-- **THEN** pinned favorites appear first, followed by all other apps in
-  alphabetical order
+#### Scenario: Searching within the active filter
+- **WHEN** the filter is Favorites and the learner types in the Frame search
+- **THEN** only favorites matching the search text remain visible; apps outside
+  the favorites set are not surfaced by the search
+
+#### Scenario: Widening the search scope
+- **WHEN** the learner switches the filter to All and continues searching
+- **THEN** the search now matches across all installed apps
+
+### Requirement: Clicking a running app focuses its window
+
+Clicking an app icon in any mode SHALL focus the app's existing window if it is
+already open, and launch the app only if it is not.
+
+#### Scenario: Click focuses instead of relaunching
+- **WHEN** the learner clicks an app icon whose app is already open
+- **THEN** the shell requests focus/raise of the existing window rather than
+  starting a second instance
+
+#### Scenario: Click launches when closed
+- **WHEN** the learner clicks an app icon whose app is not open
+- **THEN** the app launches
+
+### Requirement: Central menu replaces direct Settings popup
+
+The Spiral center button SHALL open a popup menu rather than opening the
+Settings panel directly. The menu SHALL contain Settings and a
+mode-appropriate exit action: Logout in standalone mode, Close Sugar Next in
+hosted mode.
+
+#### Scenario: Central menu in standalone mode
+- **WHEN** the learner activates the center button and the shell owns the
+  session (standalone)
+- **THEN** the menu offers Settings and Logout
+
+#### Scenario: Central menu in hosted mode
+- **WHEN** the learner activates the center button and the shell runs inside a
+  host GNOME (hosted)
+- **THEN** the menu offers Settings and Close Sugar Next (the host session is
+  unaffected)
 
 ### Requirement: Dark/light theme
 
@@ -81,8 +121,9 @@ is clicked, without requiring a separate Apply action or hex entry.
 
 ### Requirement: Icon hover tint
 
-App icons in both radial and grid modes SHALL brighten and saturate slightly
-on mouse hover, with a smooth transition.
+App icons in all modes SHALL brighten and saturate slightly on mouse hover,
+with a smooth transition. Open/focused state rendering SHALL take precedence
+over the hover tint.
 
 #### Scenario: Hovering over an icon
 - **WHEN** the learner hovers the mouse over an app icon

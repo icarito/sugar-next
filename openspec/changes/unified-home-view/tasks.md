@@ -2,90 +2,125 @@
 
 ## 1. Dark/light theme toggle (Frame button)
 
-- [ ] 1.1 Add `dark_mode` (bool, default false) to settings_store.py defaults
-- [ ] 1.2 Add `set_dark_mode(bool)` to theme.py — swaps `--sn-*` token set
+- [x] 1.1 Add `dark_mode` (bool, default false) to settings_store.py defaults
+- [x] 1.2 Add `set_dark_mode(bool)` to theme.py — swaps `--sn-*` token set
       between light and dark variants
-- [ ] 1.3 Add dark/light toggle button to Frame bar (right edge), icon
-      changes between `sun-symbolic` and `weather-clear-night-symbolic`
-- [ ] 1.4 Wire button click → settings_store flip → theme_manager.set_dark_mode
-- [ ] 1.5 Manual test: toggle in Frame, confirm all chrome switches theme
+- [x] 1.3 Add dark/light toggle button to Frame bar (right edge), icon
+      changes between light/dark mode icons
+- [x] 1.4 Wire button click → settings_store flip → theme_manager.set_dark_mode
+- [x] 1.5 Manual test: toggle in Frame, confirm all chrome switches theme
       instantly; restart, confirm persisted
+- [ ] 1.6 BUG (found in explore): `sun-symbolic` does not exist in Adwaita, so
+      the light-mode icon never renders (only the moon shows). Use
+      `weather-clear-symbolic` (paired with `weather-clear-night-symbolic`)
 
 ## 2. Accent color auto-apply
 
-- [ ] 2.1 Remove hex Gtk.Entry and Apply button from settings.py Color tab
-      (lines 399-408, `custom_row` and `_on_custom_accent`)
-- [ ] 2.2 Confirm `_on_accent_chosen` already applies immediately (it does)
-- [ ] 2.3 Manual test: click swatch → accent changes instantly; no Apply
+- [x] 2.1 Remove hex Gtk.Entry and Apply button from settings.py Color tab
+      (`custom_row` and `_on_custom_accent`)
+- [x] 2.2 Confirm `_on_accent_chosen` already applies immediately (it does)
+- [x] 2.3 Manual test: click swatch → accent changes instantly; no Apply
       button or hex entry visible
 
 ## 3. Icon hover tint (CSS)
 
-- [ ] 3.1 Add `.pie-menu-petal:hover { -gtk-icon-filter: brightness(1.15)
+- [x] 3.1 Add `.pie-menu-petal:hover image { -gtk-icon-filter: brightness(1.15)
       saturate(1.2); }` to pie_menu.py CSS
-- [ ] 3.2 Add `.app-grid-cell:hover image { -gtk-icon-filter: brightness(1.15)
+- [x] 3.2 Add `.app-grid-cell:hover image { -gtk-icon-filter: brightness(1.15)
       saturate(1.2); }` to app_grid.py CSS
-- [ ] 3.3 Add `transition: -gtk-icon-filter 150ms ease` to existing icon
+- [x] 3.3 Add `transition: -gtk-icon-filter 150ms ease` to existing icon
       transition rules
-- [ ] 3.4 Manual test: hover over grid cell and pie petal, icon brightens
+- [x] 3.4 Manual test: hover over grid cell and pie petal, icon brightens
       smoothly; unhover, returns to state-based rendering
 
-## 4. Unified Home View wrapper + mode switching
+## 4. Unified Home View: mode (layout) axis
 
-- [ ] 4.1 Create `UnifiedHomeView` widget that wraps pie menu and app grid as
-      internal children in a Gtk.Stack with OVER_UP/DOWN transitions
-- [ ] 4.2 Set "favorites" (radial, pie menu) as default visible page
-- [ ] 4.3 Add zoom toggle: F1 = zoom out (radial), F2 = zoom in (grid).
-      Also a small button at the Home view's top-right
-- [ ] 4.4 Wire zoom toggle to HomeView.set_active() with OVER_UP/DOWN
-- [ ] 4.5 Replace HomeView's two-view registration with single
-      UnifiedHomeView in main.py
-- [ ] 4.6 Manual test: F1/F2 switches between radial and grid with slide
-      animation; button reflects current mode
+The Home View gains three *layout modes*, orthogonal to the *filter* axis
+(section 5). A mode decides how icons are arranged; a filter decides which
+icons appear.
 
-## 5. Global type-to-search
+- [ ] 4.1 Create `UnifiedHomeView` widget that owns the three modes. Spiral
+      and grid subsume today's `SugarPieMenu` and `SugarAppGrid` rendering
+- [ ] 4.2 Spiral mode: radial layout that grows into concentric rings as the
+      icon count exceeds one ring (classic Sugar RingLayout behavior), so
+      Spiral + "All apps" (50+) stays legible instead of one huge circle
+- [ ] 4.3 Grid mode: flow/grid layout (today's app grid), MRU-ordered
+- [ ] 4.4 Free mode: manual x/y placement — each icon draggable to any
+      position, persisted per app id in SettingsStore
+- [ ] 4.5 Default on shell start: Spiral mode
+- [ ] 4.6 Manual test: switch modes, confirm the same filtered icon set
+      re-lays-out in each; Free-mode positions survive restart
 
-- [ ] 5.1 Add a Gtk.SearchEntry overlay to the UnifiedHomeView (hidden by
-      default, positioned at top)
-- [ ] 5.2 In main.py:_on_key_pressed, catch printable chars that don't match
-      any keybinding — show the search overlay, focus entry, insert char
-- [ ] 5.3 Escape or focus-loss hides the search overlay, clears filter
-- [ ] 5.4 Filtering: in grid mode, existing _filter_func applies. In radial
-      mode, match petal names against search text (opacity 0 for non-matches)
-- [ ] 5.5 Manual test: press any letter key on Desktop → search bar appears
-      with that letter; radial mode filters petals; switch to grid mode,
-      filter persists; Esc dismisses
+## 5. Filter axis (orthogonal to mode)
 
-## 6. MRU ordering
+- [ ] 5.1 Filter has four values: Favorites+Active (default), Favorites,
+      Active, All. Sourced from favorites.json (pinned) and `app_state`
+      (open) — no new bookkeeping
+- [ ] 5.2 Default filter on shell start: Favorites+Active (union) — never an
+      empty screen even before anything is launched
+- [ ] 5.3 Filter selector lives in the Frame (not a permanent command bar —
+      the Frame still appears via hot corner / reveal as today)
+- [ ] 5.4 Any mode × any filter is a valid combination (6 total)
+- [ ] 5.5 Manual test: each filter value narrows the icon set; open an app not
+      pinned → it appears under Active and Favorites+Active but not Favorites
 
-- [ ] 6.1 Add `mru_order` (list of str, default []) to settings_store.py
-- [ ] 6.2 Update MRU list on every app launch (in main.py:_on_app_launched)
-- [ ] 6.3 Refactor SugarAppGrid to order by MRU: favorites first, then
-      recently launched, then alphabetical (never-launched)
-- [ ] 6.4 Manual test: launch Firefox, launch Calculator → Calculator appears
+## 6. Mode navigation via scroll / gesture (F-keys are dead on modern laptops)
+
+- [ ] 6.1 Remove reliance on F1/F2 for mode switching — modern laptops remap
+      the F-row to hardware keys, making them unreachable
+- [ ] 6.2 Lateral scroll OR shift+scroll anywhere on the shell moves between
+      modes; plain vertical scroll stays reserved for scrolling within grid
+- [ ] 6.3 Scroll over the Frame also switches mode (the Frame has no scrollable
+      content of its own)
+- [ ] 6.4 Touch gesture equivalent (pinch or two-finger swipe) for
+      touchscreens
+- [ ] 6.5 Manual test on a laptop with an F-row remapped by firmware: modes
+      switch by scroll/gesture with no F-key needed
+
+## 7. Search moved to the Frame
+
+- [ ] 7.1 Move the search entry out of `app_grid.py` and into the Frame bar
+- [ ] 7.2 Search respects the active filter (searching in Favorites searches
+      only favorites; switch to All explicitly to search everything)
+- [ ] 7.3 Filtering applies across whichever mode is active (spiral/grid/free)
+- [ ] 7.4 Manual test: type in Frame search → current mode filters live;
+      change filter → search scope changes accordingly
+
+## 8. Central menu (replaces direct Settings popup) + click-to-focus
+
+- [ ] 8.1 Spiral center button opens a popup MENU, not the Settings panel
+      directly. Menu items: Settings; plus Logout (standalone mode) or Close
+      Sugar Next (hosted mode), keyed off `self._standalone_mode`
+- [ ] 8.2 Clicking an app icon (spiral/grid/free) calls `focus_window()` if the
+      app is already open (reuse `_on_frame_running_activated`'s logic), else
+      launches — matching what the Frame's running list already does
+- [ ] 8.3 Manual test: click a running app's icon → its window raises instead
+      of relaunching; center menu shows the mode-appropriate exit action
+
+## 9. MRU ordering (grid mode)
+
+- [ ] 9.1 Add `mru_order` (list of str, default []) to settings_store.py
+- [ ] 9.2 Update MRU list on every app launch (in main.py:_on_app_launched)
+- [ ] 9.3 Grid mode orders by MRU: favorites first, then recently launched,
+      then alphabetical (never-launched)
+- [ ] 9.4 Manual test: launch Firefox, launch Calculator → Calculator appears
       before Firefox in grid; launch Firefox again → Firefox moves to top
 
-## 7. Frame simplification
+## 10. Specs updates
 
-- [ ] 7.1 Replace [Desktop] [Apps] view switcher with a single Home button
-      (or keep both but map to zoom directions)
-- [ ] 7.2 Update _VIEW_KEYS: F1 = zoom out, F2 = zoom in (both within
-      the single Home view)
-- [ ] 7.3 Manual test: Frame shows one view button; F1/F2 zoom within Home
+- [ ] 10.1 Delta spec `frame-views`: single Home view; mode nav via
+      scroll/gesture (not F1/F2); Frame gains filter selector, search entry,
+      dark/light toggle; central menu replaces direct Settings popup
+- [ ] 10.2 Delta spec `home-view`: three layout modes (spiral/grid/free),
+      four-value filter axis, search-respects-filter, click-to-focus,
+      dark/light toggle, accent auto-apply, hover tint
+- [ ] 10.3 Update `semantic-color-system`: dark/light token set switching
 
-## 8. Specs updates
+## 11. Verification
 
-- [ ] 8.1 Write delta spec for `frame-views`: view switcher simplified to one
-      Home view, F1/F2 as zoom actions, Frame gains dark/light toggle
-- [ ] 8.2 Write delta spec for `home-view`: unified single view, global
-      type-to-search, MRU ordering, dark/light toggle, accent auto-apply,
-      hover tint
-- [ ] 8.3 Update `semantic-color-system`: add dark/light token set switching
-
-## 9. Verification
-
-- [ ] 9.1 Full manual walkthrough: start shell → radial mode → type a letter
-      → search appears → F2 → grid mode with filter → F1 → back to radial →
-      toggle dark/light → click accent swatch → launch app → confirm MRU
-      updated → close app → confirm icon state
-- [ ] 9.2 Run existing test suite: `python -m pytest sugar-next/tests/`
+- [ ] 11.1 Full manual walkthrough: start shell → Spiral + Favorites+Active →
+      scroll to Grid → type in Frame search → change filter to All → scroll to
+      Free, drag an icon → toggle dark/light → click a running app's icon
+      (raises, not relaunches) → open center menu (correct exit action) →
+      restart, confirm Free positions + theme persisted
+- [ ] 11.2 Run existing test suite: `python -m pytest sugar-next/tests/`

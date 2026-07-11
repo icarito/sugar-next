@@ -1,0 +1,18 @@
+<node>
+  <interface name="org.sugarlabs.SugarNext.WindowSource">
+    <method name="FocusWindow">
+      <arg type="s" direction="in" name="app_id"/>
+      <arg type="b" direction="out" name="success"/>
+    </method>
+    <signal name="WindowOpened">
+      <arg type="s" name="app_id"/>
+      <arg type="s" name="title"/>
+    </signal>
+    <signal name="WindowClosed">
+      <arg type="s" name="app_id"/>
+    </signal>
+    <signal name="WindowFocused">
+      <arg type="s" name="app_id"/>
+    </signal>
+  </interface>
+</node>

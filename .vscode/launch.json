@@ -25,6 +25,22 @@
             "justMyCode": false
         },
         {
+            "name": "Sugar Next (container)",
+            "detail": "runs Sugar Next in a podman container against the host Wayland session",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "${workspaceFolder}/sugar-next/dev/run-container.sh",
+            "cwd": "${workspaceFolder}/sugar-next"
+        },
+        {
+            "name": "Sugar Next (Wayfire standalone)",
+            "detail": "runs the shell as a Wayfire session's own client — standalone-mode window-observation adapter, nested inside the current session (session/wayfire.ini). Super+Return opens a terminal inside the nested session to launch other apps and exercise external-window tracking.",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "env SUGAR_NEXT_CMD=\"${env:HOME}/.local/share/sugar-next/venv/bin/python3 ${workspaceFolder}/sugar-next/sugar_next/shell/main.py\" PYTHONPATH=\"${workspaceFolder}/sugar-next\" wayfire -c \"${workspaceFolder}/sugar-next/session/wayfire.ini\"",
+            "cwd": "${workspaceFolder}/sugar-next"
+        },
+        {
             "name": "Sugar Next (editable src)",
             "detail": "runs against sugar-next/sugar_next in-place, for active development",
             "type": "debugpy",

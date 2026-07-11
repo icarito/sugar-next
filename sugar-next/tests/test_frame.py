@@ -84,6 +84,36 @@ def test_remove_running_unknown_app_is_a_no_op(tmp_path, monkeypatch):
     assert _running_box_count(frame) == 1
 
 
+def test_running_entry_click_never_falls_back_to_launch(tmp_path, monkeypatch):
+    # Regression: a running Frame entry's click handler used to call
+    # bundle.launch() whenever on_activate() returned falsy (e.g. the
+    # window-observation adapter failed to focus an already-closed
+    # window) — silently spawning a duplicate instance. Clicking a
+    # running entry must be focus-or-nothing.
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    frame = SugarFrame()
+    launch_calls = []
+    activate_calls = []
+
+    bundle = types.SimpleNamespace(
+        app_id="app.desktop",
+        name="app.desktop",
+        icon=None,
+        launch=lambda: launch_calls.append(True) or True,
+    )
+    frame.set_running_activated_callback(
+        lambda b: activate_calls.append(b) or False  # simulate focus failure
+    )
+    frame.add_running(bundle)
+
+    item = frame._running_box.get_first_child()
+    button = item.get_first_child()
+    button.emit("clicked")
+
+    assert activate_calls == [bundle]
+    assert launch_calls == []
+
+
 def test_view_switcher_selects_and_closes_frame(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
     frame = SugarFrame()

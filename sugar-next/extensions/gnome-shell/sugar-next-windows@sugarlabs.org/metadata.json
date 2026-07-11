@@ -1,0 +1,7 @@
+{
+  "uuid": "sugar-next-windows@sugarlabs.org",
+  "name": "Sugar Next Window Source",
+  "description": "Exposes GNOME Shell's window open/close/focus state over D-Bus for the Sugar Next shell's hosted-mode window-observation adapter. Dev/runtime helper, no user-facing UI.",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "url": "https://github.com/sugarlabs/sugar-next"
+}

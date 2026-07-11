@@ -60,7 +60,7 @@ to be as easy to hack on as it is to use. If setting up the dev
 environment, running tests, or understanding the code feels harder than it
 should, that is a bug — please report it.
 
-## Quick start
+## Quick Start
 
 Requires GTK4 and PyGObject from your distro:
 
@@ -77,11 +77,77 @@ cd sugar-next/sugar-next
 sugar-next
 ```
 
-> Note: the `sugar-next/` directory inside the repo is the actual project.
-> Clone the whole repo, then `cd sugar-next/sugar-next` to find the shell.
+> Note: in this monorepo, `sugar-next/` is the actual project directory.
+> Most commands below assume you are either in that directory or using the
+> repository root paths shown by the VS Code tasks.
 
-For Podman, pip install, and development instructions see the full
-[HIG.md](HIG.md) and the `openspec/` change documents.
+## Startup Modes
+
+Sugar Next supports exactly two ways to run — no nested-compositor dev
+indirection in between (see `HIG.md`'s "Startup modes and window
+observation" and the `casilda-activity-host` change for the full design):
+
+| Mode | How | Window data source |
+| --- | --- | --- |
+| **Hosted** (primary dev environment) | Run normally inside a GNOME session — `sugar-next` or `PYTHONPATH=. python -m sugar_next.shell.main` | `sugar-next-windows` GNOME Shell extension (installed by `bootstrap.sh`) |
+| **Standalone** | The shell as a Wayfire session's own client — see `session/wayfire.ini` | `wlr-foreign-toplevel-management` (native to Wayfire) |
+
+`bootstrap.sh` detects which mode applies and prepares it — installing and
+enabling the GNOME Shell extension on a GNOME session, or pointing to
+`session/wayfire.ini` otherwise. Neither mode requires Sugar Next to own
+window placement or tiling; that stays with GNOME or Wayfire.
+
+| VS Code task / launch config | Command | Use when |
+| --- | --- | --- |
+| `Run Sugar Next` / `Sugar Next (editable src)` | `PYTHONPATH=. python -m sugar_next.shell.main` | Hosted-mode local run inside GNOME |
+| `Run Sugar Next (container)` | `dev/run-container.sh` | Run from an OCI image against the host Wayland socket |
+| `Bootstrap Sugar Next` | `./bootstrap.sh` | Install into `~/.local/share/sugar-next/venv`, create a desktop entry, set up hosted-mode window observation |
+| `Test Sugar Next` | `python -m pytest tests/` | Run the shell test suite |
+
+Install `debugpy` once if you want the debugpy launch configs:
+
+```sh
+~/.local/share/sugar-next/venv/bin/pip install debugpy
+```
+
+## Container Run
+
+The container runner builds `sugar-next:dev` and runs the editable source
+tree against your host Wayland socket:
+
+```sh
+dev/run-container.sh
+```
+
+Requirements:
+
+| Tool | Notes |
+| --- | --- |
+| Podman | Default engine. Use `SUGAR_NEXT_CONTAINER_ENGINE=docker` for Docker. |
+| Wayland session | `WAYLAND_DISPLAY` and `XDG_RUNTIME_DIR` must be set. |
+| GPU device access | The runner passes `--device /dev/dri`. |
+
+Useful overrides:
+
+```sh
+SUGAR_NEXT_CONTAINER_BUILD=0 dev/run-container.sh
+SUGAR_NEXT_CONTAINER_IMAGE=sugar-next:test dev/run-container.sh
+SUGAR_NEXT_CONTAINER_ENGINE=docker dev/run-container.sh
+```
+
+Manual equivalent:
+
+```sh
+podman build -t sugar-next:dev -f Containerfile .
+dev/run-container.sh
+```
+
+If rootless Podman networking fails after a kernel update with a `pasta` or
+`/dev/net/tun` error, rebuild once with:
+
+```sh
+podman build --network=host -t sugar-next:dev -f Containerfile .
+```
 
 ## Acknowledgements
 

@@ -111,3 +111,41 @@ def test_pid_zero_does_not_register_a_close_watch(tmp_path, monkeypatch):
 
     bundle._on_launched(None, bundle.app_info, {"pid": 12345})
     assert watch_calls == [12345]
+
+
+def test_from_wm_class_direct_match(tmp_path, monkeypatch):
+    # Fast path: Gio.DesktopAppInfo.new() finds the id directly. Uses the
+    # real GIO desktop-file index (like Gio.DesktopAppInfo.new always
+    # does), so exercise it against a real installed app rather than a
+    # tmp_path fixture — XDG_DATA_HOME changes mid-process aren't
+    # guaranteed to be picked up by GIO's cached app index.
+    apps = DesktopBundle.sorted_apps()
+    if not apps:
+        return  # nothing installed in this environment to test against
+    known = apps[0]
+    bundle = DesktopBundle.from_wm_class(known.app_id.removesuffix(".desktop"))
+    assert bundle is not None
+    assert bundle.app_id == known.app_id
+
+
+def test_from_wm_class_normalized_match(tmp_path, monkeypatch):
+    # A window-observation adapter's wm_class doesn't always match the
+    # .desktop id's exact casing/suffix (window-observation spec: "external
+    # window is tracked") — from_wm_class must fall back to a normalized
+    # scan (via iter_apps) when the direct Gio.DesktopAppInfo.new() lookup
+    # misses. Mock iter_apps directly rather than depending on GIO's
+    # desktop-file index picking up a tmp_path fixture mid-process.
+    bundle, _ = _marker_bundle(tmp_path)
+    from sugar_next import bundles
+
+    monkeypatch.setattr(
+        bundles.desktop_bundle.DesktopBundle, "iter_apps", lambda: iter([bundle])
+    )
+
+    found = DesktopBundle.from_wm_class("SMOKE")
+    assert found is not None
+    assert found.app_id == "smoke.desktop"
+
+
+def test_from_wm_class_no_match_returns_none():
+    assert DesktopBundle.from_wm_class("no.such.app.Anywhere") is None

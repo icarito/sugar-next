@@ -12,11 +12,9 @@ compositors (Wayfire, Sway, Hyprland — Sugar Next's target, see
 specbook/docs/gtk-porting-standards.md) implement
 zwlr_foreign_toplevel_manager_v1. GNOME/Mutter implements neither this
 nor the newer ext_foreign_toplevel_list_v1 standard, by deliberate
-design (confirmed via `wayland-info` during development — this repo's
-dev environment cannot exercise this code path at all). When the
-protocol is unavailable, TopLevelTracker silently reports nothing and
-the shell's existing on_app_close-based tracking in main.py remains the
-only source of truth.
+design. When the protocol is unavailable, TopLevelTracker silently
+reports nothing and the shell's existing on_app_close-based tracking
+in main.py remains the only source of truth.
 
 Runs the Wayland event dispatch loop on a background thread (GLib's main
 loop is busy running GTK) and marshals updates back to the GTK thread via
@@ -26,6 +24,7 @@ thread.
 
 import logging
 import threading
+import time
 
 import gi
 
@@ -36,6 +35,7 @@ log = logging.getLogger("sugar-next.toplevel-tracker")
 
 try:
     from pywayland.client import Display
+    from pywayland.protocol.wayland import WlSeat
 
     _HAS_PYWAYLAND = True
 except ImportError:
@@ -45,6 +45,16 @@ if _HAS_PYWAYLAND:
     from sugar_next._wayland_wlr.wlr_foreign_toplevel_management_unstable_v1.zwlr_foreign_toplevel_manager_v1 import (
         ZwlrForeignToplevelManagerV1,
     )
+    from sugar_next._wayland_wlr.wlr_foreign_toplevel_management_unstable_v1.zwlr_foreign_toplevel_handle_v1 import (
+        ZwlrForeignToplevelHandleV1,
+    )
+
+    #: `activated` in the protocol's state enum — the focused toplevel.
+    _STATE_ACTIVATED = ZwlrForeignToplevelHandleV1.state.activated
+else:
+    _STATE_ACTIVATED = 2
+
+_SEAT_NAME = "wl_seat"
 
 _PROTOCOL_NAME = "zwlr_foreign_toplevel_manager_v1"
 
@@ -56,15 +66,31 @@ class TopLevelTracker:
     via GLib.idle_add — safe to touch widgets from them directly.
     """
 
-    def __init__(self, on_open=None, on_close=None):
+    #: Seconds to idle between event-loop roundtrips. roundtrip() flushes
+    #: outgoing requests (which dispatch() does not — see _run) but returns
+    #: as soon as the server replies rather than blocking on the socket, so
+    #: a bare loop would busy-spin. 0.1s keeps focus/open latency
+    #: imperceptible for icon state while leaving the thread idle.
+    _POLL_INTERVAL = 0.1
+
+    def __init__(self, on_open=None, on_close=None, on_focus=None):
         self._on_open = on_open
         self._on_close = on_close
+        #: Called with the app_id of the newly-focused toplevel (or None
+        #: when focus leaves all tracked toplevels), on the GTK main thread.
+        self._on_focus = on_focus
         self._thread = None
         self._display = None
         self._running = False
         self._available = None
-        #: handle id (Wayland object id) -> {"app_id": str, "title": str}
+        #: keyed by Python object id so handle identities survive across
+        #: the C/Python boundary (handles are pywayland Proxy objects
+        #: created by the compositor and do not have a stable .id attr).
         self._toplevels = {}
+        #: bound wl_seat proxy, needed for ZwlrForeignToplevelHandleV1's
+        #: activate() request; set from the same registry roundtrip that
+        #: binds the toplevel manager (see _run).
+        self._seat = None
 
     @property
     def available(self) -> bool:
@@ -106,6 +132,12 @@ class TopLevelTracker:
                     manager_proxy["proxy"] = registry.bind(
                         name, ZwlrForeignToplevelManagerV1, min(version, 3)
                     )
+                elif interface == _SEAT_NAME:
+                    # Needed for ZwlrForeignToplevelHandleV1.activate(seat)
+                    # — focus-follow (window-observation spec) in
+                    # standalone mode. Any compositor offering the
+                    # foreign-toplevel protocol also offers wl_seat.
+                    self._seat = registry.bind(name, WlSeat, min(version, 7))
 
             registry.dispatcher["global"] = on_global
             self._display.roundtrip()
@@ -122,8 +154,16 @@ class TopLevelTracker:
             self._available = True
             manager.dispatcher["toplevel"] = self._on_toplevel_created
 
+            # Use roundtrip(), NOT dispatch(block=True): dispatch only reads
+            # incoming events and never flushes the manager bind / handle
+            # requests, so the compositor never starts streaming toplevels
+            # and no event is ever delivered. roundtrip() flushes then waits
+            # for the server reply, which drives event delivery — verified
+            # live under Wayfire (v0.10.1, wlroots 0.19.3). The sleep avoids
+            # busy-spinning since roundtrip() returns promptly.
             while self._running:
-                self._display.dispatch(block=True)
+                self._display.roundtrip()
+                time.sleep(self._POLL_INTERVAL)
         except Exception:
             self._available = False
             log.exception("Toplevel tracker stopped due to an error")
@@ -135,8 +175,9 @@ class TopLevelTracker:
                     pass
 
     def _on_toplevel_created(self, _manager, handle):
-        state = {"app_id": None, "title": None}
-        self._toplevels[handle.id] = state
+        _key = id(handle)
+        state = {"app_id": None, "title": None, "activated": False, "handle": handle}
+        self._toplevels[_key] = state
 
         def on_app_id(_handle, app_id):
             state["app_id"] = app_id
@@ -144,16 +185,73 @@ class TopLevelTracker:
         def on_title(_handle, title):
             state["title"] = title
 
+        def on_state(_handle, states):
+            state["activated"] = _STATE_ACTIVATED in list(states or [])
+
         def on_closed(_handle):
-            self._toplevels.pop(handle.id, None)
+            self._toplevels.pop(_key, None)
             if self._on_close is not None:
                 GLib.idle_add(self._on_close, state.get("app_id"), state.get("title"))
+            if state.get("activated") and self._on_focus is not None:
+                GLib.idle_add(self._emit_focus)
 
         def on_done(_handle):
             if self._on_open is not None:
                 GLib.idle_add(self._on_open, state.get("app_id"), state.get("title"))
+            if self._on_focus is not None:
+                GLib.idle_add(self._emit_focus)
 
         handle.dispatcher["app_id"] = on_app_id
         handle.dispatcher["title"] = on_title
+        handle.dispatcher["state"] = on_state
         handle.dispatcher["closed"] = on_closed
         handle.dispatcher["done"] = on_done
+
+    def _emit_focus(self):
+        """Report the app_id of the currently-activated toplevel, if any."""
+        # Snapshot values before iterating: the background Wayland thread
+        # can mutate _toplevels while this runs on the GTK main thread.
+        snap = list(self._toplevels.values())
+        focused = next(
+            (
+                s.get("app_id")
+                for s in snap
+                if s.get("activated")
+            ),
+            None,
+        )
+        if self._on_focus is not None:
+            self._on_focus(focused)
+
+    def focus(self, app_id: str) -> bool:
+        """Request activation of the toplevel matching *app_id*.
+
+        Uses ZwlrForeignToplevelHandleV1.activate(seat) — part of the
+        foreign-toplevel protocol itself, no compositor-specific IPC
+        needed (window-observation spec: "Activating a running entry
+        focuses the window"). Returns False if no matching toplevel is
+        currently tracked or the seat hasn't been bound yet.
+
+        Called from the GTK main thread (via main.py's
+        _on_frame_running_activated), not the tracker's background
+        thread. activate()'s underlying _marshal() only buffers the
+        request; it does not require running on the display's own
+        thread to enqueue safely. The background thread's next
+        roundtrip() (at most _POLL_INTERVAL later) flushes it to the
+        compositor — acceptable latency for a user-initiated focus click.
+        """
+        if self._seat is None:
+            return False
+        # Normalize app_id the same way app_state does: drop trailing
+        # ".desktop" and lowercase so the compositor's WM_CLASS-like
+        # value matches a desktop-file id from the bundle.
+        from sugar_next.shell.app_state import normalize_app_id
+        requested = normalize_app_id(app_id)
+        # Snapshot before iterating: the background Wayland thread
+        # can mutate _toplevels concurrently.
+        snap = list(self._toplevels.values())
+        for state in snap:
+            if normalize_app_id(state.get("app_id") or "") == requested:
+                state["handle"].activate(self._seat)
+                return True
+        return False

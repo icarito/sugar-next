@@ -30,3 +30,16 @@ def test_filter_unwraps_flowboxchild():
 
     grid._search_entry.set_text("definitely-no-such-app-xyz")
     assert grid._filter_func(child) is False
+
+
+def test_cell_is_fully_constructed():
+    # Regression: the icon-state binding must not truncate the cell's
+    # constructor — label, icon and click gesture all belong to __init__.
+    grid = SugarAppGrid()
+    cell = grid._flow_box.get_first_child().get_child()
+    assert cell.icon is not None
+    assert cell.label is not None
+    assert hasattr(cell, "dispose_icon_state")
+    # Icon carries an initial state class (closed until the app opens).
+    assert cell.icon.has_css_class("sn-icon-closed")
+    cell.dispose_icon_state()  # must not raise

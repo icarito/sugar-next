@@ -273,7 +273,6 @@ class SugarShell(Gtk.Application):
         self._bg_contrast = float(self.settings_store.get("bg_contrast"))
         self._bg_saturation = float(self.settings_store.get("bg_saturation"))
         self._bg_vignette = float(self.settings_store.get("bg_vignette"))
-        self._bg_grey_pixbuf = None
 
         self._bg_overlay = Gtk.DrawingArea()
         self._bg_overlay.set_hexpand(True)

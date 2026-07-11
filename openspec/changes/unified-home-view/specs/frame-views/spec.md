@@ -1,6 +1,6 @@
-# frame-views (MODIFIED)
+# frame-views
 
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Single Home view accessible from the Frame
 

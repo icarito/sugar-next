@@ -1,6 +1,6 @@
-# semantic-color-system (MODIFIED)
+# semantic-color-system
 
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Light and dark token sets
 
@@ -16,8 +16,8 @@ computation. Switching between them SHALL be instant and not require restart.
 
 ### Requirement: Per-token overrides survive theme switch
 
-If the learner has manually overridden a token (e.g. `--sn-surface`), that
-override SHALL be preserved when switching between light and dark themes.
+The shell SHALL preserve a learner's manual token override (e.g. `--sn-surface`)
+when switching between light and dark themes.
 
 #### Scenario: Override in dark mode
 - **WHEN** the learner overrides `--sn-surface` in dark mode, then toggles

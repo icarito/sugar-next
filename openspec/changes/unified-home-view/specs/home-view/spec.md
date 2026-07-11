@@ -1,6 +1,6 @@
-# home-view (MODIFIED)
+# home-view
 
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Unified Home View with orthogonal mode and filter axes
 

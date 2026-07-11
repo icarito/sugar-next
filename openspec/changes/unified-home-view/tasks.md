@@ -59,32 +59,37 @@ icons appear.
       `app_state` — no new bookkeeping; tested in tests/test_app_ordering.py
 - [x] 5.2 Default filter on shell start: Favorites+Active (union) — the view
       subscribes to app_state so it stays live
-- [ ] 5.3 Filter selector lives in the Frame (needs Frame wiring — task 7)
+- [x] 5.3 Filter selector lives in the Frame (Gtk.DropDown in frame.py, wired
+      to unified_home.set_filter)
 - [x] 5.4 Any mode × any filter is a valid combination (verified in
       tests/test_unified_home_view.py)
 - [ ] 5.5 Manual test: each filter narrows the set (needs shell running)
 
 ## 6. Mode navigation via scroll / gesture (F-keys are dead on modern laptops)
 
-- [ ] 6.1 Remove reliance on F1/F2 for mode switching — modern laptops remap
-      the F-row to hardware keys, making them unreachable
-- [ ] 6.2 Lateral scroll OR shift+scroll anywhere on the shell moves between
-      modes; plain vertical scroll stays reserved for scrolling within grid
-- [ ] 6.3 Scroll over the Frame also switches mode (the Frame has no scrollable
-      content of its own)
-- [ ] 6.4 Touch gesture equivalent (pinch or two-finger swipe) for
-      touchscreens
-- [ ] 6.5 Manual test on a laptop with an F-row remapped by firmware: modes
-      switch by scroll/gesture with no F-key needed
+- [x] 6.1 Remove reliance on F1/F2 for mode switching — _VIEW_KEYS removed
+      from _on_key_pressed; single Home view no longer needs view keys
+- [x] 6.2 Lateral scroll OR shift+scroll anywhere switches mode
+      (Gtk.EventControllerScroll on the window → unified_home.cycle_mode);
+      plain vertical scroll left for the grid
+- [x] 6.3 Scroll over the Frame also switches mode (controller is on the
+      window, so it covers the Frame too)
+- [ ] 6.4 Touch gesture equivalent (pinch/two-finger swipe) — DEFERRED with
+      Free mode; the scroll path covers trackpad/wheel now
+- [ ] 6.5 Manual test on a laptop with a remapped F-row (needs hardware;
+      shell smoke-tested to start cleanly with the scroll controller wired)
 
 ## 7. Search moved to the Frame
 
-- [ ] 7.1 Move the search entry out of `app_grid.py` and into the Frame bar
-- [ ] 7.2 Search respects the active filter (searching in Favorites searches
-      only favorites; switch to All explicitly to search everything)
-- [ ] 7.3 Filtering applies across whichever mode is active (spiral/grid/free)
-- [ ] 7.4 Manual test: type in Frame search → current mode filters live;
-      change filter → search scope changes accordingly
+- [x] 7.1 Move the search entry out of `app_grid.py` and into the Frame bar
+      (Gtk.SearchEntry in frame.py; grid filtered via set_search_text)
+- [x] 7.2 Search respects the active filter (UnifiedHomeView._visible_bundles
+      applies search within the filtered set; tested in
+      tests/test_unified_home_view.py)
+- [x] 7.3 Filtering applies across whichever mode is active (spiral repopulates
+      on search; grid filters live)
+- [ ] 7.4 Manual test: type in Frame search → mode filters live (needs the
+      shell running; smoke-tested to start cleanly)
 
 ## 8. Central menu (replaces direct Settings popup) + click-to-focus
 
@@ -111,19 +116,20 @@ icons appear.
 
 ## 10. Specs updates
 
-- [ ] 10.1 Delta spec `frame-views`: single Home view; mode nav via
+- [x] 10.1 Delta spec `frame-views`: single Home view; mode nav via
       scroll/gesture (not F1/F2); Frame gains filter selector, search entry,
       dark/light toggle; central menu replaces direct Settings popup
-- [ ] 10.2 Delta spec `home-view`: three layout modes (spiral/grid/free),
-      four-value filter axis, search-respects-filter, click-to-focus,
-      dark/light toggle, accent auto-apply, hover tint
-- [ ] 10.3 Update `semantic-color-system`: dark/light token set switching
+- [x] 10.2 Delta spec `home-view`: layout modes, four-value filter axis,
+      search-respects-filter, click-to-focus, dark/light toggle, accent
+      auto-apply, hover tint (Free mode noted as follow-up)
+- [x] 10.3 Update `semantic-color-system`: dark/light token set switching
 
 ## 11. Verification
 
-- [ ] 11.1 Full manual walkthrough: start shell → Spiral + Favorites+Active →
-      scroll to Grid → type in Frame search → change filter to All → scroll to
-      Free, drag an icon → toggle dark/light → click a running app's icon
-      (raises, not relaunches) → open center menu (correct exit action) →
-      restart, confirm Free positions + theme persisted
-- [ ] 11.2 Run existing test suite: `python -m pytest sugar-next/tests/`
+- [ ] 11.1 Full manual walkthrough (needs a real session): Spiral +
+      Favorites+Active → scroll to Grid → Frame search → filter to All →
+      toggle dark/light → click a running app's icon (raises) → center menu
+      exit action. Startup smoke-tested clean under Xvfb; Free-mode step
+      deferred with Free mode.
+- [x] 11.2 Run existing test suite: `python -m pytest sugar-next/tests/`
+      (119 passed)

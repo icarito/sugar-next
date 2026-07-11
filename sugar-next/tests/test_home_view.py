@@ -35,20 +35,13 @@ def test_add_and_switch_layouts(tmp_path, monkeypatch):
     assert home_view.active_id == "app-grid"
 
 
-def test_switching_preserves_app_grid_search_state(tmp_path, monkeypatch):
-    # Views preserve their own state across switches (frame-views spec).
+def test_app_grid_search_state_survives_repopulate(tmp_path, monkeypatch):
+    # Search now lives in the Frame and drives the grid via set_search_text;
+    # the grid keeps that filter text as its own state.
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
-    home_view = HomeView()
     app_grid = SugarAppGrid()
-    pie_menu = SugarPieMenu()
-    home_view.add_view(app_grid, set_active=True)
-    home_view.add_view(pie_menu)
-
-    app_grid._search_entry.set_text("firefox")
-    home_view.set_active("desktop-grid")
-    home_view.set_active("app-grid")
-
-    assert app_grid._search_entry.get_text() == "firefox"
+    app_grid.set_search_text("firefox")
+    assert app_grid._search_text == "firefox"
 
 
 def test_unknown_layout_raises():

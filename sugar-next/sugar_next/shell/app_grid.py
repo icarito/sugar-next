@@ -135,15 +135,8 @@ class SugarAppGrid(Gtk.Box):
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
 
-        self._search_entry = Gtk.SearchEntry()
-        self._search_entry.set_placeholder_text("Search applications...")
-        self._search_entry.set_margin_start(16)
-        self._search_entry.set_margin_end(16)
-        self._search_entry.set_margin_top(8)
-        self._search_entry.set_margin_bottom(8)
-        self._search_entry.connect("search-changed", self._on_search_changed)
-        self.append(self._search_entry)
-
+        # Search now lives in the Frame (unified-home-view change); the grid
+        # is filtered via set_search_text() rather than an inline entry.
         self._scrolled = Gtk.ScrolledWindow()
         self._scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         self._scrolled.set_vexpand(True)

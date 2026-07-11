@@ -170,6 +170,20 @@ class UnifiedHomeView(Gtk.Stack):
         else:
             self._grid.populate(bundles)
 
+    # -- settings passthrough (delegated to the child pages) -------------
+
+    def set_background(self, path):
+        if hasattr(self._spiral, "set_background"):
+            self._spiral.set_background(path)
+        if hasattr(self._grid, "set_background"):
+            self._grid.set_background(path)
+
+    def set_icon_size(self, px):
+        for page in (self._spiral, self._grid):
+            if hasattr(page, "set_icon_size"):
+                page.set_icon_size(px)
+        self._repopulate()
+
     # -- view protocol (HomeView duck-types on view_id/on_activate) -------
 
     def on_activate(self):

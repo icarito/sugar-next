@@ -13,6 +13,8 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gtk
 
+from sugar_next.shell.app_ordering import FILTER_LABELS, FILTERS
+
 
 class _FrameItem(Gtk.Box):
     """Icon in the frame bar for a running activity.
@@ -163,6 +165,24 @@ class SugarFrame(Gtk.Revealer):
         self._view_buttons = {}
         self._on_view_selected = None
 
+        # Filter selector + search for the Home view. The Frame is still a
+        # hot-corner panel; these live in it, not a permanent command bar.
+        self._filter_values = list(FILTERS)
+        self._filter_dropdown = Gtk.DropDown.new_from_strings(
+            [FILTER_LABELS[f] for f in self._filter_values]
+        )
+        self._filter_dropdown.add_css_class("frame-filter")
+        self._filter_dropdown.connect("notify::selected", self._on_filter_changed)
+        self._on_filter_selected = None
+        bar.append(self._filter_dropdown)
+
+        self._search_entry = Gtk.SearchEntry()
+        self._search_entry.set_placeholder_text("Search applications…")
+        self._search_entry.add_css_class("frame-search")
+        self._search_entry.connect("search-changed", self._on_search_changed)
+        self._on_search_changed_cb = None
+        bar.append(self._search_entry)
+
         self._running_box = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL, spacing=4
         )
@@ -182,6 +202,25 @@ class SugarFrame(Gtk.Revealer):
 
     def set_running_activated_callback(self, callback):
         self._on_running_activated = callback
+
+    # -- filter + search ---------------------------------------------------
+
+    def set_filter_changed_callback(self, callback):
+        """*callback(filter_value)* runs when the filter selector changes."""
+        self._on_filter_selected = callback
+
+    def set_search_changed_callback(self, callback):
+        """*callback(text)* runs when the search entry changes."""
+        self._on_search_changed_cb = callback
+
+    def _on_filter_changed(self, dropdown, _pspec):
+        index = dropdown.get_selected()
+        if 0 <= index < len(self._filter_values) and self._on_filter_selected:
+            self._on_filter_selected(self._filter_values[index])
+
+    def _on_search_changed(self, entry):
+        if self._on_search_changed_cb is not None:
+            self._on_search_changed_cb(entry.get_text())
 
     def set_theme_toggle_callback(self, callback):
         self._on_theme_toggle = callback

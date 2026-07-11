@@ -15,7 +15,7 @@ from sugar_next.shell.app_grid import SugarAppGrid
 from sugar_next.shell.pie_menu import SugarPieMenu
 from sugar_next.shell.frame import SugarFrame
 from sugar_next.shell.gnome_window_source import GnomeWindowSource
-from sugar_next.shell.home_view import HomeView
+from sugar_next.shell.home_view import HomeView, UnifiedHomeView
 from sugar_next.shell.theme import manager as theme_manager
 from sugar_next.shell.palette import dominant_color_hex
 from sugar_next.shell.settings import SettingsPanel
@@ -242,26 +242,20 @@ class SugarShell(Gtk.Application):
             icon_size=icon_size,
         )
 
+        # One Home view with orthogonal mode (spiral/grid) and filter axes;
+        # the pie menu and grid are its internal pages. The outer HomeView
+        # container keeps one entry ("home") so the Frame switcher, Settings
+        # background/icon-size passthrough, and view protocol are unchanged.
+        self.unified_home = UnifiedHomeView(
+            self.pie_menu, self.app_grid, app_state
+        )
         self.home_view = HomeView()
-        self.home_view.add_view(self.app_grid)
-        self.home_view.add_view(self.pie_menu, set_active=True)
+        self.home_view.add_view(self.unified_home, set_active=True)
 
-        # Views are navigated from the Frame (Desktop / Apps), not selected
-        # in Settings. Map the user-facing view onto the underlying layout
-        # id. Order here is the Frame button order. Search view is removed
-        # (desktop-pie-menu change); F3 is reserved for a future
-        # Groups/Neighborhood view.
-        self._views = [
-            ("desktop-grid", "Desktop"),
-            ("app-grid", "Apps"),
-        ]
-
-        # Restore the last active view, or start in Desktop on first run.
-        saved_layout = self.settings_store.get("home_view_layout")
-        if saved_layout in self.home_view.view_ids():
-            self.home_view.set_active(saved_layout)
-        else:
-            self.home_view.set_active("desktop-grid")
+        # The Frame shows a single Home view (frame-views spec). Modes are
+        # navigated by scroll/gesture within the view, not by Frame buttons.
+        self._views = [("home", "Home")]
+        self.home_view.set_active("home")
 
         self._background_picture = Gtk.Picture()
         self._background_picture.set_content_fit(Gtk.ContentFit.COVER)
@@ -363,10 +357,20 @@ class SugarShell(Gtk.Application):
         self.frame.set_running_activated_callback(self._on_frame_running_activated)
         self.frame.set_theme_toggle_callback(self._on_theme_toggle)
         self.frame.set_dark_mode(self.settings_store.get("dark_mode"))
+        self.frame.set_filter_changed_callback(self.unified_home.set_filter)
+        self.frame.set_search_changed_callback(self.unified_home.set_search)
 
         key_controller = Gtk.EventControllerKey()
         key_controller.connect("key-pressed", self._on_key_pressed)
         self.window.add_controller(key_controller)
+
+        # Lateral scroll (or shift+scroll) anywhere switches Home view mode;
+        # plain vertical scroll is left for scrolling within the grid. See
+        # the home-view spec ("Mode navigation via scroll or gesture").
+        scroll = Gtk.EventControllerScroll()
+        scroll.set_flags(Gtk.EventControllerScrollFlags.BOTH_AXES)
+        scroll.connect("scroll", self._on_scroll)
+        self.window.add_controller(scroll)
 
         # Motion on the hot corner itself (keeping the old behavior).
         motion = Gtk.EventControllerMotion()
@@ -454,15 +458,12 @@ class SugarShell(Gtk.Application):
             self._frame_manually_dismissed = True
         self.frame.set_reveal_child(False)
 
-    #: Direct keybindings to views (frame-views spec): F1/F2. F3 is
-    #: reserved for a future Groups/Neighborhood view (desktop-pie-menu
-    #: change removed Search, which previously used F3).
-    _VIEW_KEYS = {
-        Gdk.KEY_F1: "desktop-grid",
-        Gdk.KEY_F2: "app-grid",
-    }
-
     def _on_key_pressed(self, controller, keyval, keycode, state):
+        # There is now one Home view; modes (spiral/grid) are navigated by
+        # scroll/gesture, not F1/F2 — those are unreachable on laptops
+        # whose firmware maps the F-row to hardware keys (unified-home-view
+        # change). F6/F10 remain as a keyboard fallback pending their own
+        # dead-key rework.
         if keyval == Gdk.KEY_F6:
             # F6 is a deliberate act, like clicking the handle: it pins the
             # Frame open, or unpins+closes it if already open.
@@ -474,9 +475,6 @@ class SugarShell(Gtk.Application):
             else:
                 self._frame_pinned = True
                 self._reveal_frame()
-            return True
-        if keyval in self._VIEW_KEYS:
-            self._activate_view(self._VIEW_KEYS[keyval])
             return True
         if keyval == Gdk.KEY_F10:
             if self.settings_panel.is_visible():
@@ -521,6 +519,21 @@ class SugarShell(Gtk.Application):
     def _on_motion(self, controller, x, y):
         if y <= 3:
             self._reveal_frame()
+
+    #: Scroll deltas below this are treated as noise (touchpad jitter).
+    _SCROLL_THRESHOLD = 0.5
+
+    def _on_scroll(self, controller, dx, dy):
+        # Lateral scroll, or shift+scroll, steps the Home view mode. Plain
+        # vertical scroll (no shift, no horizontal delta) is left alone so
+        # the grid can scroll its contents.
+        state = controller.get_current_event_state()
+        shift = bool(state & Gdk.ModifierType.SHIFT_MASK)
+        delta = dx if abs(dx) >= abs(dy) else (dy if shift else 0.0)
+        if abs(delta) < self._SCROLL_THRESHOLD:
+            return False
+        self.unified_home.cycle_mode(1 if delta > 0 else -1)
+        return True
 
     def _on_frame_reveal_changed(self, frame, _pspec):
         # Fade the pull-down handle out while the Frame is visible instead

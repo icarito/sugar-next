@@ -538,18 +538,14 @@ class SugarShell(Gtk.Application):
     def _draw_bg_overlay(self, area, cr, width, height):
         # Saturation: cross-fade a greyscale copy over the color image.
         if self._bg_saturation < 1.0 and self._bg_grey_pixbuf is not None:
-            surf = Gdk.cairo_surface_create_from_pixbuf(
-                self._bg_grey_pixbuf, self.window.get_scale_factor()
+            cr.save()
+            cr.scale(
+                width / GdkPixbuf.Pixbuf.get_width(self._bg_grey_pixbuf),
+                height / GdkPixbuf.Pixbuf.get_height(self._bg_grey_pixbuf),
             )
-            if surf is not None:
-                cr.save()
-                cr.scale(
-                    width / GdkPixbuf.Pixbuf.get_width(self._bg_grey_pixbuf),
-                    height / GdkPixbuf.Pixbuf.get_height(self._bg_grey_pixbuf),
-                )
-                cr.set_source_surface(surf, 0, 0)
-                cr.paint_with_alpha(1.0 - self._bg_saturation)
-                cr.restore()
+            Gdk.cairo_set_source_pixbuf(cr, self._bg_grey_pixbuf, 0, 0)
+            cr.paint_with_alpha(1.0 - self._bg_saturation)
+            cr.restore()
         # Vignette: radial gradient, transparent at center, dark at edges.
         if self._bg_vignette > 0:
             cx, cy = width / 2, height / 2

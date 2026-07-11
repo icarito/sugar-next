@@ -221,8 +221,10 @@ class ThemeManager:
         self._override_provider = Gtk.CssProvider()
         self._tint_provider = Gtk.CssProvider()
         self._contrast_provider = Gtk.CssProvider()
-        self._tokens = dict(_DARK_TOKENS if prefers_dark() else _LIGHT_TOKENS)
+        self._dark = prefers_dark()
+        self._tokens = dict(_DARK_TOKENS if self._dark else _LIGHT_TOKENS)
         self._accent = DEFAULT_ACCENT
+        self._contrast_level = "normal"
         #: token name -> value, manually set by the user; wins over derived.
         self._overrides = _parse_override_file(colors_override_file())
 
@@ -252,11 +254,20 @@ class ThemeManager:
 
     def set_contrast(self, level):
         """*level* is ``"normal"`` or ``"high"``."""
+        self._contrast_level = level
         if level != "high":
             self._contrast_provider.load_from_string("")
             return
-        overrides = _HIGH_CONTRAST_DARK if prefers_dark() else _HIGH_CONTRAST_LIGHT
+        overrides = _HIGH_CONTRAST_DARK if self._dark else _HIGH_CONTRAST_LIGHT
         self._contrast_provider.load_from_string(_tokens_css(overrides))
+
+    def set_dark_mode(self, is_dark):
+        """Toggle between light and dark mode."""
+        self._dark = is_dark
+        self._tokens = dict(_DARK_TOKENS if is_dark else _LIGHT_TOKENS)
+        self._base_provider.load_from_string(_tokens_css(self._tokens))
+        self.set_accent_tint(self._accent)
+        self.set_contrast(self._contrast_level)
 
     def set_accent_tint(self, hex_color):
         """Set the accent and regenerate the derived palette from it.
@@ -268,7 +279,7 @@ class ThemeManager:
             self._tint_provider.load_from_string("")
             return
         self._accent = hex_color
-        palette = derive_palette(hex_color, prefers_dark())
+        palette = derive_palette(hex_color, self._dark)
         self._tint_provider.load_from_string(
             "window {\n"
             + "".join(f"    {name}: {value};\n" for name, value in palette.items())
@@ -277,7 +288,7 @@ class ThemeManager:
 
     def derived_palette(self):
         """The current accent-derived token values (for the Settings UI)."""
-        return derive_palette(self._accent, prefers_dark())
+        return derive_palette(self._accent, self._dark)
 
     def override_value(self, token):
         """The user override for *token*, or None if it is auto-derived."""

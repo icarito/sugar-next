@@ -97,6 +97,8 @@ class SugarShell(Gtk.Application):
             default_height=768,
         )
         self.settings_store = SettingsStore()
+        is_dark = self.settings_store.get("dark_mode")
+        theme_manager.set_dark_mode(is_dark)
         theme_manager.apply(self.window.get_display())
         if self.settings_store.get("accent_color"):
             theme_manager.set_accent_tint(self.settings_store.get("accent_color"))
@@ -357,6 +359,8 @@ class SugarShell(Gtk.Application):
             active_id=self.home_view.active_id,
         )
         self.frame.set_running_activated_callback(self._on_frame_running_activated)
+        self.frame.set_theme_toggle_callback(self._on_theme_toggle)
+        self.frame.set_dark_mode(self.settings_store.get("dark_mode"))
 
         key_controller = Gtk.EventControllerKey()
         key_controller.connect("key-pressed", self._on_key_pressed)
@@ -497,6 +501,12 @@ class SugarShell(Gtk.Application):
         # after selection (handled in frame.py), so drop any pin.
         self._frame_pinned = False
         self._activate_view(view_id)
+
+    def _on_theme_toggle(self):
+        is_dark = not self.settings_store.get("dark_mode")
+        self.settings_store.set("dark_mode", is_dark)
+        theme_manager.set_dark_mode(is_dark)
+        self.frame.set_dark_mode(is_dark)
 
     def _on_motion(self, controller, x, y):
         if y <= 3:

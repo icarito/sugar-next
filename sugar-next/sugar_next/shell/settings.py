@@ -395,17 +395,6 @@ class SettingsWindow(Gtk.Window):
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
         section.append(swatches)
-
-        custom_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        self._custom_entry = Gtk.Entry()
-        self._custom_entry.set_placeholder_text("#rrggbb")
-        self._custom_entry.set_max_length(7)
-        self._custom_entry.set_hexpand(True)
-        custom_row.append(self._custom_entry)
-        apply_btn = Gtk.Button(label="Apply")
-        apply_btn.connect("clicked", self._on_custom_accent)
-        custom_row.append(apply_btn)
-        section.append(custom_row)
         box.append(section)
 
         # -- Per-token overrides section --
@@ -605,11 +594,6 @@ class SettingsWindow(Gtk.Window):
         for token in getattr(self, "_token_swatches", {}):
             if theme_manager.override_value(token) is None:
                 self._refresh_token_swatch(token)
-
-    def _on_custom_accent(self, _btn):
-        text = self._custom_entry.get_text().strip()
-        if len(text) == 7 and text.startswith("#"):
-            self._on_accent_chosen(None, text)
 
     # -- Tab: Behavior ----------------------------------------------------
 

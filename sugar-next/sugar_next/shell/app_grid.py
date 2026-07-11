@@ -1,207 +1,163 @@
+# Sugar Next - App Grid View
+# Copyright 2025 Sebastian Silva, Pliaget
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 import gi
+gi.require_version('Gtk', '4.0')
+from gi.repository import Gtk, Gio, GLib, Pango, Gdk
 
-gi.require_version("Gtk", "4.0")
-gi.require_version("Gdk", "4.0")
-from gi.repository import Gdk, Gtk, Gio, GLib, Pango
-
-from sugar_next.shell.icon_state import bind_icon_state
+from sugar_next.shell.icon_state import icon_with_state
 
 
+class AppGrid(Gtk.ScrolledWindow):
+    def __init__(self):
+        super().__init__()
 
-class _AppGridCell(Gtk.Box):
-    __gtype_name__ = "SugarNextAppGridCell"
+        self._box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.set_child(self._box)
 
-    def __init__(self, bundle, on_launched=None, on_pin=None, icon_size=48):
-        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        self.bundle = bundle
-        self._on_launched = on_launched
-        self._on_pin = on_pin
-        self.set_margin_start(12)
-        self.set_margin_end(12)
-        self.set_margin_top(12)
-        self.set_margin_bottom(12)
-        self.set_valign(Gtk.Align.CENTER)
-        self.set_halign(Gtk.Align.CENTER)
-        self.add_css_class("app-grid-cell")
+        self.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.set_vexpand(True)
 
-        icon_info = bundle.icon
-        if icon_info:
-            self.icon = Gtk.Image.new_from_gicon(icon_info)
-        else:
-            self.icon = Gtk.Image.new_from_icon_name("application-x-executable")
-        self.icon.set_pixel_size(icon_size)
-        self.append(self.icon)
+        self._gtk_settings = Gtk.Settings.get_default()
 
-        # Greyscale when closed, color when open, saturated when focused.
-        self._unbind_icon_state = bind_icon_state(self.icon, bundle.app_id)
-
-        self.label = Gtk.Label(label=bundle.name)
-        self.label.set_max_width_chars(12)
-        self.label.set_ellipsize(Pango.EllipsizeMode.END)
-        self.label.set_justify(Gtk.Justification.CENTER)
-        self.label.set_wrap(True)
-        self.label.set_wrap_mode(Pango.WrapMode.WORD_CHAR)
-        self.append(self.label)
-
-        click = Gtk.GestureClick()
-        click.connect("pressed", self._on_pressed)
-        self.add_controller(click)
-
-        if on_pin is not None:
-            right_click = Gtk.GestureClick()
-            right_click.set_button(3)
-            right_click.connect("pressed", self._on_right_click)
-            self.add_controller(right_click)
-
-    def dispose_icon_state(self):
-        """Detach the icon-state subscription before this cell is dropped."""
-        if getattr(self, "_unbind_icon_state", None) is not None:
-            self._unbind_icon_state()
-            self._unbind_icon_state = None
-
-    def _on_pressed(self, gesture, n_press, x, y):
-        self.bundle.launch()
-        if self._on_launched is not None:
-            self._on_launched(self.bundle)
-
-    def _on_right_click(self, gesture, n_press, x, y):
-        popover = Gtk.Popover()
-        popover.set_parent(self)
-        pin_button = Gtk.Button(label="Pin to Frame favorites")
-        pin_button.add_css_class("flat")
-
-        def _pin(_button):
-            popover.popdown()
-            self._on_pin(self.bundle)
-
-        pin_button.connect("clicked", _pin)
-        popover.set_child(pin_button)
-        popover.popup()
-
-
-class SugarAppGrid(Gtk.Box):
-    __gtype_name__ = "SugarNextAppGrid"
-
-    view_id = "app-grid"
-    view_name = "Apps"
-
-    _CSS = """
-        .app-grid-cell {
-            border-radius: 14px;
-            padding: 10px;
-            background: none;
-            border: none;
-            box-shadow: none;
-            transition: all 150ms ease;
-        }
-        .app-grid-cell:hover {
-            background: linear-gradient(180deg,
-                rgba(128,128,128,0.10) 0%,
-                rgba(128,128,128,0.04) 100%
-            );
-        }
-        .app-grid-cell:active {
-            background: linear-gradient(180deg,
-                rgba(128,128,128,0.15) 0%,
-                rgba(128,128,128,0.08) 100%
-            );
-        }
-        .app-grid-cell label {
-            color: var(--sn-text);
-            font-size: 11pt;
-        }
-    """
-
-    def __init__(self, on_launched=None, on_pin=None, icon_size=48):
-        super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
-        self._on_launched = on_launched
-        self._on_pin = on_pin
-        self._icon_size = icon_size
-
-        provider = Gtk.CssProvider()
-        provider.load_from_string(self._CSS)
+        style = self.get_style_context()
+        # Dark background for icon grid
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_string('''
+            .app-grid-scroll {
+                background: @window_bg_color;
+            }
+            .app-grid-flowbox {
+                padding: 24px;
+            }
+            .app-grid-cell {
+                background: transparent;
+                border: none;
+                padding: 8px;
+                border-radius: 8px;
+                min-width: 100px;
+                min-height: 100px;
+            }
+            .app-grid-cell:hover {
+                background: alpha(@accent_bg_color, 0.15);
+            }
+            .app-grid-cell label {
+                font-size: 11px;
+                color: @window_fg_color;
+            }
+            .app-grid-cell image {
+                transition: -gtk-icon-filter 150ms ease;
+            }
+            .app-grid-cell:hover image {
+                -gtk-icon-filter: brightness(1.15) saturate(1.2);
+            }
+            .app-grid-search {
+                margin: 12px;
+                margin-bottom: 0;
+                min-height: 36px;
+                border-radius: 18px;
+            }
+        ''')
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(),
-            provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+            css_provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
 
         self._search_entry = Gtk.SearchEntry()
         self._search_entry.set_placeholder_text("Search applications...")
-        self._search_entry.set_margin_start(16)
-        self._search_entry.set_margin_end(16)
-        self._search_entry.set_margin_top(8)
-        self._search_entry.set_margin_bottom(8)
-        self._search_entry.connect("search-changed", self._on_search_changed)
-        self.append(self._search_entry)
+        self._search_entry.add_css_class("app-grid-search")
+        self._search_entry.connect("search_changed", self._on_search_changed)
+        self._search_entry.connect("activate", self._on_search_activate)
+        self._box.append(self._search_entry)
 
-        self._scrolled = Gtk.ScrolledWindow()
-        self._scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        self._scrolled.set_vexpand(True)
-        self.append(self._scrolled)
+        self._flowbox = Gtk.FlowBox()
+        self._flowbox.set_max_children_per_line(8)
+        self._flowbox.set_min_children_per_line(3)
+        self._flowbox.set_selection_mode(Gtk.SelectionMode.NONE)
+        self._flowbox.set_homogeneous(True)
+        self._flowbox.set_activate_on_single_click(True)
+        self._flowbox.add_css_class("app-grid-flowbox")
+        self._flowbox.connect("child_activated", self._on_app_activated)
+        self._box.append(self._flowbox)
 
-        self._flow_box = Gtk.FlowBox()
-        self._flow_box.set_valign(Gtk.Align.START)
-        self._flow_box.set_max_children_per_line(8)
-        self._flow_box.set_selection_mode(Gtk.SelectionMode.NONE)
-        self._flow_box.set_row_spacing(4)
-        self._flow_box.set_column_spacing(4)
-        self._flow_box.set_margin_start(16)
-        self._flow_box.set_margin_end(16)
-        self._flow_box.set_margin_top(8)
-        self._flow_box.set_margin_bottom(16)
-        self._flow_box.set_filter_func(self._filter_func)
-        self._scrolled.set_child(self._flow_box)
+        self._apps = []
 
-        self._all_cells = []
+    def populate(self, apps):
+        self._apps = apps
+        child = self._flowbox.get_first_child()
+        while child:
+            next_child = child.get_next_sibling()
+            self._flowbox.remove(child)
+            child = next_child
 
-        self._populate()
+        for appinfo in apps:
+            btn = Gtk.Button()
+            btn.add_css_class("app-grid-cell")
+            btn.set_has_frame(False)
 
-    def _populate(self):
-        bundles = self._load_bundles()
-        for bundle in bundles:
-            cell = _AppGridCell(
-                bundle,
-                on_launched=self._on_launched,
-                on_pin=self._on_pin,
-                icon_size=self._icon_size,
-            )
-            self._all_cells.append(cell)
-            self._flow_box.append(cell)
+            vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            vbox.set_halign(Gtk.Align.CENTER)
 
-    def _load_bundles(self):
-        from sugar_next.bundles.desktop_bundle import DesktopBundle
+            icon = icon_with_state(appinfo)
+            icon.set_pixel_size(48)
+            vbox.append(icon)
 
-        return DesktopBundle.sorted_apps()
+            label = Gtk.Label(label=appinfo.get_display_name())
+            label.set_justify(Gtk.Justification.CENTER)
+            label.set_lines(2)
+            label.set_wrap(True)
+            label.set_ellipsize(Pango.EllipsizeMode.END)
+            vbox.append(label)
 
-    def set_icon_size(self, icon_size):
-        self._icon_size = icon_size
-        for cell in self._all_cells:
-            cell.dispose_icon_state()
-        while child := self._flow_box.get_first_child():
-            self._flow_box.remove(child)
-        self._all_cells = []
-        self._populate()
+            btn.set_child(vbox)
+            btn.set_appinfo(appinfo)
+            self._flowbox.append(btn)
 
     def _on_search_changed(self, entry):
-        self._flow_box.invalidate_filter()
+        """Filter flowbox children based on search text."""
+        search_text = entry.get_text().lower().strip()
+        child = self._flowbox.get_first_child()
+        while child:
+            btn = child
+            if search_text:
+                name = btn.get_appinfo().get_display_name().lower()
+                btn.set_visible(search_text in name)
+            else:
+                btn.set_visible(True)
+            child = child.get_next_sibling()
 
-    def on_activate(self):
-        pass
+    def _on_search_activate(self, entry):
+        """Launch the first visible app on Enter."""
+        search_text = entry.get_text().lower().strip()
+        if not search_text:
+            return
+        child = self._flowbox.get_first_child()
+        while child:
+            if child.get_visible():
+                appinfo = child.get_appinfo()
+                if appinfo:
+                    try:
+                        ctx = GLib.AppLaunchContext()
+                        Gio.AppInfo.launch_default_for_uri(
+                            appinfo.get_id(), ctx
+                        )
+                    except Exception as e:
+                        print(f"Error launching app: {e}")
+                break
+            child = child.get_next_sibling()
 
-    def on_deactivate(self):
-        # Views preserve their own state (search text, scroll position)
-        # across switches — see the frame-views spec. Nothing is reset.
-        pass
+    def _on_app_activated(self, flowbox, child):
+        appinfo = child.get_appinfo()
+        if appinfo:
+            try:
+                ctx = GLib.AppLaunchContext()
+                Gio.AppInfo.launch_default_for_uri(
+                    appinfo.get_id(), ctx
+                )
+            except Exception as e:
+                print(f"Error launching app: {e}")
 
-    def _filter_func(self, child):
-        # FlowBox wraps each cell in a Gtk.FlowBoxChild.
-        if child is None:
-            return False
-        text = self._search_entry.get_text()
-        if not text:
-            return True
-        cell = child.get_child() if isinstance(child, Gtk.FlowBoxChild) else child
-        if hasattr(cell, "bundle"):
-            return text.lower() in cell.bundle.name.lower()
-        return False
+    def focus_search(self):
+        self._search_entry.grab_focus()

@@ -94,11 +94,17 @@ class SugarAppGrid(Gtk.Box):
             box-shadow: none;
             transition: all 150ms ease;
         }
+        .app-grid-cell image {
+            transition: -gtk-icon-filter 150ms ease;
+        }
         .app-grid-cell:hover {
             background: linear-gradient(180deg,
                 rgba(128,128,128,0.10) 0%,
                 rgba(128,128,128,0.04) 100%
             );
+        }
+        .app-grid-cell:hover image {
+            -gtk-icon-filter: brightness(1.15) saturate(1.2);
         }
         .app-grid-cell:active {
             background: linear-gradient(180deg,

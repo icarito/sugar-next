@@ -468,13 +468,19 @@ class SettingsWindow(Gtk.Window):
             return
         color = self._current_token_value(token)
         css_class = "tok-" + token.strip("-")
-        prov = Gtk.CssProvider()
+        providers = getattr(self, "_token_css_providers", None)
+        if providers is None:
+            providers = self._token_css_providers = {}
+        prov = providers.get(token)
+        if prov is None:
+            prov = Gtk.CssProvider()
+            providers[token] = prov
+            Gtk.StyleContext.add_provider_for_display(
+                Gdk.Display.get_default(),
+                prov,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+            )
         prov.load_from_string(f".{css_class} {{ background: {color}; }}")
-        Gtk.StyleContext.add_provider_for_display(
-            Gdk.Display.get_default(),
-            prov,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
-        )
         swatch.add_css_class(css_class)
 
     def _on_token_swatch_clicked(self, _btn, token):

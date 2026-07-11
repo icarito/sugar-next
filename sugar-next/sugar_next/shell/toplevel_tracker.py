@@ -209,10 +209,13 @@ class TopLevelTracker:
 
     def _emit_focus(self):
         """Report the app_id of the currently-activated toplevel, if any."""
+        # Snapshot values before iterating: the background Wayland thread
+        # can mutate _toplevels while this runs on the GTK main thread.
+        snap = list(self._toplevels.values())
         focused = next(
             (
                 s.get("app_id")
-                for s in self._toplevels.values()
+                for s in snap
                 if s.get("activated")
             ),
             None,
@@ -239,8 +242,16 @@ class TopLevelTracker:
         """
         if self._seat is None:
             return False
-        for state in self._toplevels.values():
-            if state.get("app_id") == app_id:
+        # Normalize app_id the same way app_state does: drop trailing
+        # ".desktop" and lowercase so the compositor's WM_CLASS-like
+        # value matches a desktop-file id from the bundle.
+        from sugar_next.shell.app_state import normalize_app_id
+        requested = normalize_app_id(app_id)
+        # Snapshot before iterating: the background Wayland thread
+        # can mutate _toplevels concurrently.
+        snap = list(self._toplevels.values())
+        for state in snap:
+            if normalize_app_id(state.get("app_id") or "") == requested:
                 state["handle"].activate(self._seat)
                 return True
         return False

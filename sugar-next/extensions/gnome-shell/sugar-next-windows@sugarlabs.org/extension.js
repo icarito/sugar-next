@@ -135,9 +135,13 @@ export default class SugarNextWindowSourceExtension extends Extension {
 
     // D-Bus method: FocusWindow(app_id) -> bool
     FocusWindow(appId) {
+        // Normalize: strip optional ".desktop" suffix and lowercase so a
+        // desktop-file id from the bundle matches the compositor's WM_CLASS.
+        const wanted = appId.replace(/\.desktop$/i, "").toLowerCase();
         for (const actor of global.get_window_actors()) {
             const win = actor.get_meta_window();
-            if (win.get_wm_class() === appId) {
+            const wmClass = (win.get_wm_class() || "").toLowerCase();
+            if (wmClass === wanted) {
                 win.activate(global.get_current_time());
                 return true;
             }

@@ -26,6 +26,7 @@ def _fake_shell():
     return types.SimpleNamespace(
         _launched_bundles={},
         toplevel_tracker=None,
+        _toplevel_refcounts={},
     )
 
 

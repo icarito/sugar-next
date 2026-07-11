@@ -192,6 +192,10 @@ class SugarShell(Gtk.Application):
         # Keyed by normalized app id. Apps opened outside the shell have no
         # bundle here and are tracked as ids only.
         self._launched_bundles = {}
+        # Window refcounts per normalized app id. In hosted mode (GNOME)
+        # each window triggers its own open/close event; this prevents
+        # closing one of multiple windows from marking the app closed.
+        self._toplevel_refcounts = {}
         # Keep the Frame's rendered running-list in sync with the shared
         # registry — the registry is the single source of truth for what
         # is open (frame-views spec); the Frame only renders it.
@@ -604,6 +608,10 @@ class SugarShell(Gtk.Application):
             return
         # A window opened for an app we did not launch (or a second window):
         # record it open so its icon lights up everywhere.
+        norm_id = normalize_app_id(wayland_app_id)
+        if not norm_id:
+            return
+        self._toplevel_refcounts[norm_id] = self._toplevel_refcounts.get(norm_id, 0) + 1
         app_state.add_open(wayland_app_id)
         # window-observation spec's "external window is tracked": show a
         # real Frame entry for apps opened outside the shell too, not
@@ -611,14 +619,24 @@ class SugarShell(Gtk.Application):
         # installed app) since this only matters for apps that actually
         # open a window; skip if we already have a bundle (shell-launched
         # apps keep using the richer one from _on_app_launched).
-        norm_id = normalize_app_id(wayland_app_id)
-        if norm_id and norm_id not in self._launched_bundles:
+        if norm_id not in self._launched_bundles:
             bundle = DesktopBundle.from_wm_class(wayland_app_id)
             if bundle is not None:
                 self._launched_bundles[norm_id] = bundle
 
     def _on_toplevel_close(self, wayland_app_id, title):
         if normalize_app_id(wayland_app_id) == _SHELL_APP_ID:
+            return
+        norm_id = normalize_app_id(wayland_app_id)
+        if not norm_id:
+            return
+        # Decrement the window refcount for this app. Only remove from
+        # app_state when its *last* window closes — an app may have
+        # multiple windows (especially in hosted/GNOME mode, where the
+        # extension reports per-window events).
+        if self._toplevel_refcounts.get(norm_id, 0) > 0:
+            self._toplevel_refcounts[norm_id] -= 1
+        if self._toplevel_refcounts.get(norm_id, 0) > 0:
             return
         # The availability guard only applies to the standalone adapter
         # (toplevel_tracker): the protocol may be unavailable on a given
@@ -659,10 +677,15 @@ class SugarShell(Gtk.Application):
         # observation spec: "Activating a running entry focuses the
         # window"). Neither adapter owns placement — this only requests
         # activation, same as clicking a taskbar entry would.
+        #
+        # bundle.app_id may end in ".desktop" (desktop-file id), but the
+        # compositor/adapter compares against WM_CLASS / Wayland app_id
+        # values that omit the suffix. Normalize so the two match.
+        normalized = normalize_app_id(bundle.app_id)
         if self.gnome_window_source is not None:
-            return self.gnome_window_source.focus_window(bundle.app_id)
+            return self.gnome_window_source.focus_window(normalized)
         if self.toplevel_tracker is not None:
-            return self.toplevel_tracker.focus(bundle.app_id)
+            return self.toplevel_tracker.focus(normalized)
         return False
 
     def _on_app_process_closed(self, app_id):
